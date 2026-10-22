@@ -135,3 +135,6 @@ pip-selfcheck.json
 
 # DB
 app.db
+
+# logs
+logs
