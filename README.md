@@ -7,10 +7,16 @@ Following along the [Flask Mega tutorial](https://blog.miguelgrinberg.com/post/t
 Managed with [uv](https://docs.astral.sh/uv/). Python version is pinned via
 `.python-version` (`uv python pin 3.15`) and `requires-python` in `pyproject.toml`.
 
-```sh
-# first-time setup (reproduces the exact locked env)
-uv sync
+### Fresh-clone setup
 
+```sh
+uv sync                 # create .venv with the exact locked env (fetches Python itself if needed)
+uv run pre-commit install   # enable the black pre-commit hook (downloads hook env on first run)
+direnv allow            # optional: auto-activates .venv on cd, so bare `flask` works
+uv run flask db upgrade # create / migrate the local database
+```
+
+```sh
 # run the app (no activation needed)
 uv run flask run
 
