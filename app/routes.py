@@ -54,6 +54,17 @@ def register():
     return render_template("register.html", title="Register", form=form)
 
 
+@app.route("/profile/<username>")
+@login_required
+def profile(username):
+    user = db.first_or_404(sa.select(User).where(User.username == username))
+    posts = [
+        {"author": user, "body": "Test post #1"},
+        {"author": user, "body": "Test post #2"},
+    ]
+    return render_template("profile.html", user=user, posts=posts)
+
+
 @app.route("/logout")
 def logout():
     logout_user()
