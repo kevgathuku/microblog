@@ -22,3 +22,19 @@ uv remove <pkg>
 uv lock --upgrade-package <pkg>
 uv sync --upgrade
 ```
+
+DB operations
+
+```sh
+# Downgrade all migrations
+flask db downgrade base
+
+# Migrate up to the latest migration
+flask db upgrade
+```
+
+Start a Python interpreter in the context of the application
+
+```sh
+flask shell
+```
