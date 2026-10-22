@@ -3,15 +3,16 @@
 
 {% block content %}
 <h1>Sign In</h1>
+{# action=""  the form is submitted to the URL that rendered the form #}
 <form action="" method="post" novalidate>
   {{ form.hidden_tag() }}
   <p>
     {{ form.username.label }}<br>
     {{ form.username(size=32) }}<br>
     {% for error in form.username.errors %}
-    <span style="color: red;">
-      [{{ error }}]
-    </span>
+      <span style="color: red;">
+        [{{ error }}]
+      </span>
     {% endfor %}
   </p>
   <p>
