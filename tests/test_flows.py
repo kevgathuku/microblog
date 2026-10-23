@@ -4,19 +4,18 @@ from urllib.parse import unquote
 import pytest  # noqa: E402
 from webtest import TestApp  # noqa: E402
 
-from app import app, db  # noqa: E402
+from app import create_app, db  # noqa: E402
+from app.models import TABLES  # noqa: E402
 
 
 @pytest.fixture
 def client():
-    ctx = app.app_context()
-    ctx.push()
-    db.session.remove()
-    db.drop_all()
-    db.create_all()
-    yield TestApp(app)
-    db.session.remove()
-    ctx.pop()
+    db.connect(reuse_if_open=True)
+    db.drop_tables(TABLES, safe=True)
+    db.create_tables(TABLES, safe=True)
+    yield TestApp(create_app())
+    db.drop_tables(TABLES, safe=True)
+    db.close()
 
 
 class CSRFParser(HTMLParser):
@@ -39,7 +38,7 @@ def csrf_token(body):
 
 def redirected_to(response, suffix):
     assert response.status_int in (302, 303)
-    # Flask-Login quotes next (…?next=%2F); unquote before comparing.
+    # Login guard quotes next (…?next=%2F); unquote before comparing.
     assert unquote(response.location).endswith(suffix)
 
 
@@ -78,8 +77,8 @@ def test_register_then_login_flow(client):
 
 
 def test_post_without_csrf_token_is_rejected(client):
-    # Flask-WTF treats a missing token as a form error (200 re-render),
-    # not a 400 - but the login must not go through.
+    # A missing token is a form error (200 re-render), not a 400 - but the
+    # login must not go through.
     client.get("/login")  # sets the session cookie, but token is not submitted
     response = client.post("/login", {"username": "x"}, status=200)
     assert "Sign In" in response.text

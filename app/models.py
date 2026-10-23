@@ -1,114 +1,160 @@
+"""Peewee models for the Falcon port (SQLite, dev DB: falcon.db)."""
+
 from datetime import datetime, timezone
 from hashlib import md5
-from typing import Optional
-import sqlalchemy as sa
-import sqlalchemy.orm as so
-from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
 
-from app import db, login
-
-followers = sa.Table(
-    "followers",
-    db.metadata,
-    sa.Column("follower_id", sa.Integer, sa.ForeignKey("user.id"), primary_key=True),
-    sa.Column("followed_id", sa.Integer, sa.ForeignKey("user.id"), primary_key=True),
+from peewee import (
+    AutoField,
+    CharField,
+    CompositeKey,
+    DateTimeField,
+    ForeignKeyField,
+    Model,
+    SqliteDatabase,
+    TextField,
 )
+from werkzeug.security import check_password_hash, generate_password_hash
+
+# Deferred init: create_app() binds the real path (falcon.db, or a temp
+# file under pytest)
+db = SqliteDatabase(None)
 
 
-class User(UserMixin, db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True, unique=True)
-    email: so.Mapped[str] = so.mapped_column(sa.String(120), index=True, unique=True)
-    about_me: so.Mapped[Optional[str]] = so.mapped_column(sa.String(140))
-    last_seen: so.Mapped[Optional[datetime]] = so.mapped_column(
-        default=lambda: datetime.now(timezone.utc)
-    )
-    password_hash: so.Mapped[Optional[str]] = so.mapped_column(sa.String(256))
-    posts: so.WriteOnlyMapped["Post"] = so.relationship(back_populates="author")
-    following: so.WriteOnlyMapped["User"] = so.relationship(
-        # the association table
-        secondary=followers,
-        # User entity -> association table
-        primaryjoin=(followers.c.follower_id == id),
-        # Association table -> User
-        secondaryjoin=(followers.c.followed_id == id),
-        back_populates="followers",
-    )
-    followers: so.WriteOnlyMapped["User"] = so.relationship(
-        secondary=followers,
-        primaryjoin=(followers.c.followed_id == id),
-        secondaryjoin=(followers.c.follower_id == id),
-        back_populates="following",
-    )
+class BaseModel(Model):
+    class Meta:
+        database = db
 
-    @login.user_loader
-    def load_user(id):
-        return db.session.get(User, int(id))
+
+class User(BaseModel):
+    id = AutoField()
+    username = CharField(max_length=64, unique=True, index=True)
+    email = CharField(max_length=120, unique=True, index=True)
+    about_me = TextField(null=True)
+    last_seen = DateTimeField(null=True, default=lambda: datetime.now(timezone.utc))
+    password_hash = CharField(max_length=256, null=True)
+
+    # Flask-Login compatible flags used by the templates.
+    is_authenticated = True
+    is_anonymous = False
+
+    def get_id(self):
+        return str(self.id)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        return check_password_hash(self.password_hash or "", password or "")
 
     def avatar(self, size):
-        digest = md5(self.email.lower().encode("utf-8")).hexdigest()
+        digest = md5((self.email or "").lower().encode("utf-8")).hexdigest()
         return f"https://www.gravatar.com/avatar/{digest}?d=identicon&s={size}"
 
     def is_following(self, user):
-        query = self.following.select().where(User.id == user.id)
-        return db.session.scalar(query) is not None
+        return (
+            Follow.select()
+            .where((Follow.follower == self) & (Follow.followed == user))
+            .exists()
+        )
 
     def follow(self, user):
         if not self.is_following(user):
-            self.following.add(user)
+            Follow.create(follower=self, followed=user)
 
     def unfollow(self, user):
         if self.is_following(user):
-            self.following.remove(user)
+            (
+                Follow.delete()
+                .where((Follow.follower == self) & (Follow.followed == user))
+                .execute()
+            )
 
     def followers_count(self):
-        query = sa.select(sa.func.count()).select_from(
-            self.followers.select().subquery()
-        )
-        return db.session.scalar(query)
+        return Follow.select().where(Follow.followed == self).count()
 
     def following_count(self):
-        query = sa.select(sa.func.count()).select_from(
-            self.following.select().subquery()
+        return Follow.select().where(Follow.follower == self).count()
+
+    @property
+    def following(self):
+        return (
+            User.select()
+            .join(Follow, on=(Follow.followed == User.id))
+            .where(Follow.follower == self)
+            .order_by(User.id)
         )
-        return db.session.scalar(query)
+
+    @property
+    def followers(self):
+        return (
+            User.select()
+            .join(Follow, on=(Follow.follower == User.id))
+            .where(Follow.followed == self)
+            .order_by(User.id)
+        )
 
     def following_posts(self):
-        Author = so.aliased(User)
-        Follower = so.aliased(User)
+        followed_ids = [
+            row.followed_id
+            for row in Follow.select(Follow.followed).where(Follow.follower == self)
+        ]
         return (
-            sa.select(Post)
-            .join(Post.author.of_type(Author))
-            .join(Author.followers.of_type(Follower), isouter=True)
-            .where(
-                sa.or_(
-                    Follower.id == self.id,
-                    Author.id == self.id,
-                )
-            )
-            .group_by(Post)
+            Post.select()
+            .where(Post.user.in_(followed_ids + [self.id]))
             .order_by(Post.timestamp.desc())
         )
 
-    def __repr__(self):
-        return "<User {}>".format(self.username)
+    # Instances are often loaded twice (session user vs. page user);
+    # identity must mean "same row" for `user == current_user` checks.
+    def __eq__(self, other):
+        if isinstance(other, User):
+            return self.id is not None and self.id == other.id
+        return False
 
-
-class Post(db.Model):
-    id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    body: so.Mapped[str] = so.mapped_column(sa.String(140))
-    timestamp: so.Mapped[datetime] = so.mapped_column(
-        index=True, default=lambda: datetime.now(timezone.utc)
-    )
-    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id), index=True)
-    author: so.Mapped[User] = so.relationship(back_populates="posts")
+    def __hash__(self):
+        return hash(self.id)
 
     def __repr__(self):
-        return "<Post {}>".format(self.body)
+        return f"<User {self.username}>"
+
+
+class Follow(BaseModel):
+    follower = ForeignKeyField(User, backref="following_rel")
+    followed = ForeignKeyField(User, backref="followers_rel")
+
+    class Meta:
+        primary_key = CompositeKey("follower", "followed")
+
+
+class Post(BaseModel):
+    id = AutoField()
+    body = CharField(max_length=140)
+    timestamp = DateTimeField(index=True, default=lambda: datetime.now(timezone.utc))
+    user = ForeignKeyField(User, backref="posts", index=True)
+
+    @property
+    def author(self):
+        return self.user
+
+    @author.setter
+    def author(self, value):
+        self.user = value
+
+    def __repr__(self):
+        return f"<Post {self.body}>"
+
+
+TABLES = [User, Follow, Post]
+
+
+class DatabaseMiddleware:
+    """Open a Peewee connection per request, close it afterwards."""
+
+    def process_request(self, req, resp):
+        # reuse_if_open: plain connect() raises if the thread already
+        # holds one (e.g. tables created at startup in the same thread).
+        db.connect(reuse_if_open=True)
+
+    def process_response(self, req, resp, resource, req_succeeded):
+        if not db.is_closed():
+            db.close()

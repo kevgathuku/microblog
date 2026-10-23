@@ -1,137 +1,224 @@
-from datetime import datetime, timezone
-from urllib.parse import urlsplit
-from flask import render_template, flash, redirect, url_for, request
-from flask_login import current_user, login_user, logout_user, login_required
-import sqlalchemy as sa
-from app import app, db
-from app.forms import LoginForm, RegistrationForm, EditProfileForm, EmptyForm
+"""Falcon resources (one class per route) plus Jinja rendering."""
+
+import os
+
+import falcon
+from jinja2 import Environment, FileSystemLoader
+
+from app.auth import csrf_token, flash, form_data, login_user, logout_user, valid_csrf
+from app.forms import EditProfileForm, EmptyForm, LoginForm, RegistrationForm
 from app.models import User
 
+TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates")
+env = Environment(loader=FileSystemLoader(TEMPLATE_DIR), autoescape=True)
 
-@app.before_request
-def before_request():
-    if current_user.is_authenticated:
-        current_user.last_seen = datetime.now(timezone.utc)
-        db.session.commit()
-
-
-@app.route("/")
-@app.route("/index")
-@login_required
-def index():
-    posts = [
-        {"author": {"username": "John"}, "body": "Beautiful day in Portland!"},
-        {"author": {"username": "Susan"}, "body": "The Avengers movie was so cool!"},
-        {"author": {"username": "Vaite"}, "body": "Cash money vaite!"},
-    ]
-    return render_template("index.html", title="Home", posts=posts)
+ROUTES = {
+    "index": "/index",
+    "login": "/login",
+    "register": "/register",
+    "profile": "/profile/{username}",
+    "edit_profile": "/edit_profile",
+    "follow": "/follow/{username}",
+    "unfollow": "/unfollow/{username}",
+    "logout": "/logout",
+}
 
 
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if current_user.is_authenticated:
-        return redirect(url_for("index"))
-    form = LoginForm()
-    if form.validate_on_submit():
-        user = db.session.scalar(
-            sa.select(User).where(User.username == form.username.data)
+def url_for(endpoint, **values):
+    pattern = ROUTES[endpoint]
+    return pattern.format(**values) if values else pattern
+
+
+env.globals["url_for"] = url_for
+
+
+def render(req, resp, template, status=falcon.HTTP_200, **ctx):
+    # Flashes live in the session and are consumed on first render.
+    messages = req.context.session.pop("flashes", [])
+    resp.text = env.get_template(template).render(
+        request=req,
+        current_user=req.context.current_user,
+        get_flashed_messages=lambda: messages,
+        **ctx,
+    )
+    resp.content_type = falcon.MEDIA_HTML
+    resp.status = status
+
+
+def redirect(resp, location):
+    resp.status = falcon.HTTP_302
+    resp.location = location
+
+
+INDEX_POSTS = [
+    {"author": {"username": "John"}, "body": "Beautiful day in Portland!"},
+    {"author": {"username": "Susan"}, "body": "The Avengers movie was so cool!"},
+    {"author": {"username": "Vaite"}, "body": "Cash money vaite!"},
+]
+
+
+class IndexResource:
+    def on_get(self, req, resp):
+        render(req, resp, "index.html", title="Home", posts=INDEX_POSTS)
+
+
+class LoginResource:
+    def on_get(self, req, resp):
+        if req.context.current_user.is_authenticated:
+            return redirect(resp, url_for("index"))
+        form = LoginForm()
+        form.csrf_token_value = csrf_token(req.context.session)
+        render(req, resp, "login.html", title="Sign In", form=form)
+
+    def on_post(self, req, resp):
+        if req.context.current_user.is_authenticated:
+            return redirect(resp, url_for("index"))
+        session = req.context.session
+        params = form_data(req)
+        form = LoginForm(
+            data={
+                "username": params.get("username"),
+                "password": params.get("password"),
+                "remember_me": params.get("remember_me"),
+            }
         )
+        form.csrf_token_value = csrf_token(session)
+        if not valid_csrf(req) or not form.validate():
+            # Bad/missing token is a form error: re-render, don't log in.
+            return render(req, resp, "login.html", title="Sign In", form=form)
+        user = User.get_or_none(User.username == form.username.data)
         if user is None or not user.check_password(form.password.data):
-            flash("Invalid username or password")
-            return redirect(url_for("login"))
-        login_user(user, remember=form.remember_me.data)
-        next_page = request.args.get("next")
-        if not next_page or urlsplit(next_page).netloc != "":
-            next_page = url_for("index")
-        return redirect(url_for("index"))
-    return render_template("login.html", title="Sign In", form=form)
+            flash(session, "Invalid username or password")
+            return redirect(resp, url_for("login"))
+        login_user(session, user, remember=bool(form.remember_me.data))
+        return redirect(resp, url_for("index"))
 
 
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    if current_user.is_authenticated:
-        return redirect(url_for("index"))
-    form = RegistrationForm()
-    if form.validate_on_submit():
+class RegisterResource:
+    def on_get(self, req, resp):
+        if req.context.current_user.is_authenticated:
+            return redirect(resp, url_for("index"))
+        form = RegistrationForm()
+        form.csrf_token_value = csrf_token(req.context.session)
+        render(req, resp, "register.html", title="Register", form=form)
+
+    def on_post(self, req, resp):
+        if req.context.current_user.is_authenticated:
+            return redirect(resp, url_for("index"))
+        session = req.context.session
+        params = form_data(req)
+        form = RegistrationForm(
+            data={
+                "username": params.get("username"),
+                "email": params.get("email"),
+                "password": params.get("password"),
+                "password2": params.get("password2"),
+            }
+        )
+        form.csrf_token_value = csrf_token(session)
+        if not valid_csrf(req) or not form.validate():
+            return render(req, resp, "register.html", title="Register", form=form)
         user = User(username=form.username.data, email=form.email.data)
         user.set_password(form.password.data)
-        db.session.add(user)
-        db.session.commit()
-        flash("Congratulations, you are now a registered user!")
-        return redirect(url_for("login"))
-    return render_template("register.html", title="Register", form=form)
+        user.save()
+        flash(session, "Congratulations, you are now a registered user!")
+        return redirect(resp, url_for("login"))
 
 
-@app.route("/profile/<username>")
-@login_required
-def profile(username):
-    user = db.first_or_404(sa.select(User).where(User.username == username))
-    posts = [
-        {"author": user, "body": "Test post #1"},
-        {"author": user, "body": "Test post #2"},
-    ]
-    form = EmptyForm()
-    return render_template("profile.html", user=user, posts=posts, form=form)
-
-
-@app.route("/edit_profile", methods=["GET", "POST"])
-@login_required
-def edit_profile():
-    # Username needed for uniqueness check on submit
-    form = EditProfileForm(current_user.username)
-    if form.validate_on_submit():
-        current_user.username = form.username.data
-        current_user.about_me = form.about_me.data
-        db.session.commit()
-        flash("Your changes have been saved.")
-        return redirect(url_for("edit_profile"))
-    elif request.method == "GET":
-        form.username.data = current_user.username
-        form.about_me.data = current_user.about_me
-    return render_template("edit_profile.html", title="Edit Profile", form=form)
-
-
-@app.route("/follow/<username>", methods=["POST"])
-@login_required
-def follow(username):
-    form = EmptyForm()
-    if form.validate_on_submit():
-        user = db.session.scalar(sa.select(User).where(User.username == username))
+class ProfileResource:
+    def on_get(self, req, resp, username):
+        user = User.get_or_none(User.username == username)
         if user is None:
-            flash(f"User {username} not found.")
-            return redirect(url_for("index"))
-        if user == current_user:
-            flash("You cannot follow yourself!")
-            return redirect(url_for("profile", username=username))
-        current_user.follow(user)
-        db.session.commit()
-        flash(f"You are following {username}!")
-        return redirect(url_for("profile", username=username))
-    else:
-        return redirect(url_for("index"))
+            raise falcon.HTTPNotFound()
+        posts = [
+            {"author": user, "body": "Test post #1"},
+            {"author": user, "body": "Test post #2"},
+        ]
+        form = EmptyForm()
+        form.csrf_token_value = csrf_token(req.context.session)
+        render(req, resp, "profile.html", user=user, posts=posts, form=form)
 
 
-@app.route("/unfollow/<username>", methods=["POST"])
-@login_required
-def unfollow(username):
-    form = EmptyForm()
-    if form.validate_on_submit():
-        user = db.session.scalar(sa.select(User).where(User.username == username))
+class EditProfileResource:
+    def on_get(self, req, resp):
+        me = req.context.current_user
+        form = EditProfileForm(
+            me.username, data={"username": me.username, "about_me": me.about_me}
+        )
+        form.csrf_token_value = csrf_token(req.context.session)
+        render(req, resp, "edit_profile.html", title="Edit Profile", form=form)
+
+    def on_post(self, req, resp):
+        me = req.context.current_user
+        session = req.context.session
+        params = form_data(req)
+        form = EditProfileForm(
+            me.username,
+            data={
+                "username": params.get("username"),
+                "about_me": params.get("about_me"),
+            },
+        )
+        form.csrf_token_value = csrf_token(session)
+        if not valid_csrf(req) or not form.validate():
+            return render(
+                req, resp, "edit_profile.html", title="Edit Profile", form=form
+            )
+        me.username = form.username.data
+        me.about_me = form.about_me.data
+        me.save()
+        flash(session, "Your changes have been saved.")
+        return redirect(resp, url_for("edit_profile"))
+
+
+class FollowResource:
+    def on_post(self, req, resp, username):
+        session = req.context.session
+        if not valid_csrf(req):
+            return redirect(resp, url_for("index"))
+        user = User.get_or_none(User.username == username)
         if user is None:
-            flash(f"User {username} not found.")
-            return redirect(url_for("index"))
-        if user == current_user:
-            flash("You cannot unfollow yourself!")
-            return redirect(url_for("profile", username=username))
-        current_user.unfollow(user)
-        db.session.commit()
-        flash(f"You are not following {username}.")
-        return redirect(url_for("profile", username=username))
-    else:
-        return redirect(url_for("index"))
+            flash(session, f"User {username} not found.")
+            return redirect(resp, url_for("index"))
+        if user == req.context.current_user:
+            flash(session, "You cannot follow yourself!")
+            return redirect(resp, url_for("profile", username=username))
+        req.context.current_user.follow(user)
+        flash(session, f"You are following {username}!")
+        return redirect(resp, url_for("profile", username=username))
 
 
-@app.route("/logout")
-def logout():
-    logout_user()
-    return redirect(url_for("index"))
+class UnfollowResource:
+    def on_post(self, req, resp, username):
+        session = req.context.session
+        if not valid_csrf(req):
+            return redirect(resp, url_for("index"))
+        user = User.get_or_none(User.username == username)
+        if user is None:
+            flash(session, f"User {username} not found.")
+            return redirect(resp, url_for("index"))
+        if user == req.context.current_user:
+            flash(session, "You cannot unfollow yourself!")
+            return redirect(resp, url_for("profile", username=username))
+        req.context.current_user.unfollow(user)
+        flash(session, f"You are not following {username}.")
+        return redirect(resp, url_for("profile", username=username))
+
+
+class LogoutResource:
+    def on_get(self, req, resp):
+        logout_user(req.context.session)
+        return redirect(resp, url_for("index"))
+
+
+def add_routes(app):
+    index = IndexResource()
+    app.add_route("/", index)
+    app.add_route("/index", index)
+    app.add_route("/login", LoginResource())
+    app.add_route("/register", RegisterResource())
+    app.add_route("/profile/{username}", ProfileResource())
+    app.add_route("/edit_profile", EditProfileResource())
+    app.add_route("/follow/{username}", FollowResource())
+    app.add_route("/unfollow/{username}", UnfollowResource())
+    app.add_route("/logout", LogoutResource())

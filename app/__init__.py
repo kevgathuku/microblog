@@ -1,39 +1,34 @@
-import os
-import logging
-from logging.handlers import RotatingFileHandler
+"""Falcon WSGI app factory (Peewee + Jinja)."""
 
-from flask import Flask
-from config import Config
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
-from flask_migrate import Migrate
+import falcon
 
-app = Flask(__name__)
-app.config.from_object(Config)
+from config import Config, resolve_db_path
+from app.auth import AppMiddleware
+from app.models import TABLES, DatabaseMiddleware, db
+from app.routes import add_routes, render
 
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
 
-login = LoginManager(app)
-login.login_view = "login"
+def not_found(req, resp, ex, params):
+    render(req, resp, "404.html", status=falcon.HTTP_404)
 
-# conftest sets MICROBLOG_ENV=testing; tests assert on responses, never logs.
-if not app.debug and os.environ.get("MICROBLOG_ENV") != "testing":
-    if not os.path.exists("logs"):
-        os.mkdir("logs")
-    file_handler = RotatingFileHandler(
-        "logs/microblog.log", maxBytes=10240, backupCount=10
-    )
-    file_handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]"
-        )
-    )
-    file_handler.setLevel(logging.INFO)
-    app.logger.addHandler(file_handler)
 
-    app.logger.setLevel(logging.INFO)
-    app.logger.info("Microblog startup")
+def internal_error(req, resp, ex, params):
+    render(req, resp, "500.html", status=falcon.HTTP_500)
 
-# imported at the bottom to avoid circular imports
-from app import routes, models, errors
+
+def create_app(database_url=None):
+    db.init(resolve_db_path(database_url or Config.DATABASE_URL))
+    db.connect(reuse_if_open=True)
+    db.create_tables(TABLES, safe=True)
+    db.close()
+    # Request: connect runs before session/auth (which queries User).
+    # Response (reverse order): session cookie is saved before close.
+    app = falcon.App(middleware=[DatabaseMiddleware(), AppMiddleware()])
+    add_routes(app)
+    app.add_error_handler(falcon.HTTPNotFound, not_found)
+    app.add_error_handler(Exception, internal_error)
+    return app
+
+
+# WSGI entry point; dev DB is falcon.db unless DATABASE_URL says otherwise.
+app = create_app()

@@ -136,6 +136,7 @@ pip-selfcheck.json
 # DB
 app.db
 bottle.db
+falcon.db
 
 # logs
 logs

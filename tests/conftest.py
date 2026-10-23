@@ -7,10 +7,11 @@ import tempfile
 # pytest-xdist worker. mkstemp per process → per-worker sqlite file.
 # Always wins; external DATABASE_URL is never read.
 _worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
-_fd, _path = tempfile.mkstemp(prefix="microblog-{}-".format(_worker), suffix=".db")
+_fd, _path = tempfile.mkstemp(
+    prefix="falcon-microblog-{}-".format(_worker), suffix=".db"
+)
 os.close(_fd)
 atexit.register(lambda: os.path.exists(_path) and os.unlink(_path))
 os.environ["DATABASE_URL"] = "sqlite:///{}".format(_path)
-os.environ["MICROBLOG_ENV"] = "testing"
-# Flask-WTF CSRF + sessions need a secret; master config has no fallback.
+# Signed-cookie sessions need a secret; master config has no fallback-safe one.
 os.environ.setdefault("SECRET_KEY", "test-secret-for-pytest")
