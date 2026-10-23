@@ -1,6 +1,6 @@
 import os
-import re
 import tempfile
+from html.parser import HTMLParser
 
 _tmp = tempfile.mkstemp(suffix=".db")[1]
 os.environ["DATABASE_URL"] = "sqlite:///{}".format(_tmp)
@@ -14,8 +14,22 @@ from app.db import Base, engine  # noqa: E402
 Base.metadata.create_all(engine)
 
 
+class CSRFParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.token = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "input":
+            fields = dict(attrs)
+            if fields.get("name") == "csrf_token":
+                self.token = fields.get("value")
+
+
 def csrf_token(body):
-    return re.search(r'name="csrf_token" value="([^"]+)"', body).group(1)
+    parser = CSRFParser()
+    parser.feed(body)
+    return parser.token
 
 
 def redirected_to(response, suffix):
