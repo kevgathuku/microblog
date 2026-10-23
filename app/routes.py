@@ -1,7 +1,7 @@
 from urllib.parse import urlsplit
 
 import sqlalchemy as sa
-from bottle import abort, jinja2_template, redirect, request
+from bottle import abort, jinja2_template, redirect, request, response
 
 from app import app
 from app.auth import (
@@ -21,7 +21,7 @@ from app.urls import url
 
 def render(tpl, **ctx):
     ctx.setdefault("current_user", current_user(request))
-    ctx.setdefault("messages", get_flashed_messages())
+    ctx.setdefault("messages", get_flashed_messages(request, response))
     ctx.setdefault("csrf_token", get_or_set_csrf_token(request))
     ctx.setdefault("url", url)
     return jinja2_template(tpl, **ctx)

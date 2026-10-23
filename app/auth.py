@@ -60,12 +60,14 @@ def flash(message):
     response.set_cookie("flash", message, **cookie_options())
 
 
-def get_flashed_messages():
-    message = request.get_cookie("flash", secret=config.SECRET_KEY)
-    if message is not None:
-        response.delete_cookie("flash", path="/")
-        return [message]
-    return []
+def get_flashed_messages(req, resp):
+    message = req.get_cookie("flash", secret=config.SECRET_KEY)
+    match message:
+        case None:
+            return []
+        case message:
+            resp.delete_cookie("flash", path="/")
+            return [message]
 
 
 def get_or_set_csrf_token(req) -> str:

@@ -12,7 +12,7 @@ def render_error(tpl):
     return jinja2_template(
         tpl,
         current_user=current_user(request),
-        messages=get_flashed_messages(),
+        messages=get_flashed_messages(request, response),
         request=request,
         url=url,
     )
