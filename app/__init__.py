@@ -4,7 +4,7 @@ import falcon
 
 from config import Config, resolve_db_path
 from app.auth import AppMiddleware
-from app.models import TABLES, DatabaseMiddleware, db
+from app.models import DatabaseMiddleware, db
 from app.routes import add_routes, render
 
 
@@ -17,10 +17,10 @@ def internal_error(req, resp, ex, params):
 
 
 def create_app(database_url=None):
-    db.init(resolve_db_path(database_url or Config.DATABASE_URL))
-    db.connect(reuse_if_open=True)
-    db.create_tables(TABLES, safe=True)
-    db.close()
+    # Tables are managed with `pwmigrate up`, not here. Re-init only when
+    # an explicit URL is passed; otherwise db was bound at import.
+    if database_url:
+        db.init(resolve_db_path(database_url))
     # Request: connect runs before session/auth (which queries User).
     # Response (reverse order): session cookie is saved before close.
     app = falcon.App(middleware=[DatabaseMiddleware(), AppMiddleware()])

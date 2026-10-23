@@ -1,0 +1,8 @@
+# Defaults for `pwmigrate` (playhouse.migrations). Lets every command run
+# bare, e.g. `pwmigrate status`, `pwmigrate up`, `pwmigrate diff`:
+# the database is the app's db (dev: falcon.db, tests: temp file via
+# DATABASE_URL), the models are diffed from app.models.
+database = app.models.db
+models = app.models
+# directory = migrations
+# table = schema_migration

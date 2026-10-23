@@ -15,9 +15,12 @@ from peewee import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
-# Deferred init: create_app() binds the real path (falcon.db, or a temp
-# file under pytest)
+from config import Config, resolve_db_path
+
+# Bound at import from Config (falcon.db, or a temp file under pytest via
+# DATABASE_URL) so `pwmigrate` can resolve `app.models.db`.
 db = SqliteDatabase(None)
+db.init(resolve_db_path(Config.DATABASE_URL))
 
 
 class BaseModel(Model):
