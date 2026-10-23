@@ -53,6 +53,9 @@ uv run alembic revision --autogenerate -m "describe change"
 uv run alembic upgrade head
 ```
 
+The branch uses `bottle.db` (gitignored) so it never touches the Flask
+branch's `app.db`.
+
 Start a Python interpreter with the app loaded:
 
 ```sh
