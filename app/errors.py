@@ -11,6 +11,10 @@ from app.urls import url
 def render_error(tpl):
     # reset the session so a failed transaction can't break rendering below
     Session.rollback()
+    # The environ-cached user may be detached/expired (e.g. update_last_seen
+    # committed, then the session was removed before this handler ran) -
+    # drop it so current_user() below re-fetches a bound instance.
+    request.environ.pop("microblog.user", None)
     return jinja2_template(
         tpl,
         current_user=current_user(request),

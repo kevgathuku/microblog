@@ -112,6 +112,15 @@ def test_edit_profile_renames_user(client):
     assert "User: renamed" in client.get("/profile/renamed").text
 
 
+def test_404_while_logged_in_shows_path(client):
+    # Regression: update_last_seen commits (expiring the cached user) and the
+    # session is removed before error rendering - the 404 page must re-fetch.
+    register(client)
+    login(client)
+    body = client.get("/no-such-page", status=404).text
+    assert "Page Not Found" in body and "/no-such-page" in body
+
+
 class StubRequest:
     def __init__(self, *, form_token, cookie_token, cookie_secret=None):
         from config import config as cfg
