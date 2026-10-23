@@ -44,3 +44,36 @@ Start a Python interpreter in the context of the application
 ```sh
 flask shell
 ```
+
+### Querying (`flask shell`)
+
+```python
+from app import db
+from app.models import User, Post
+
+u = db.session.get(User, 1)                                        # by primary key
+susan = db.session.scalar(db.select(User).where(User.username == "susan"))
+
+# followers / following are WriteOnlyMapped: select through them
+# list of User
+db.session.scalars(u.followers.select()).all()
+db.session.scalars(u.following.select()).all()
+
+# just the number
+u.followers_count()
+u.following_count()
+
+# homepage feed: followed users' posts plus your own, newest first
+db.session.scalars(u.following_posts()).all()
+```
+
+### Tests
+
+```sh
+uv run pytest -q            # serial
+uv run pytest -n auto -q    # parallel, one worker per CPU
+uv run pytest -n 2 -q       # parallel, explicit worker count
+```
+
+Each pytest-xdist worker gets its own temp sqlite file and every test
+starts from a wiped DB, so tests stay isolated in both modes.
