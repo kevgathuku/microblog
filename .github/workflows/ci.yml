@@ -13,4 +13,5 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --frozen --group dev
+      - run: uv run flask --app microblog db upgrade
       - run: uv run pytest -n auto -q
