@@ -1,11 +1,9 @@
-from logging.config import fileConfig
 import os
 import sys
-
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from logging.config import fileConfig
 
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # make `app`/`config` importable when alembic runs from the project root
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))

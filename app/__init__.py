@@ -1,11 +1,11 @@
 import os
 from datetime import datetime, timezone
 
-from bottle import Bottle, TEMPLATE_PATH, abort, request
+from bottle import TEMPLATE_PATH, Bottle, abort, request
+from result import Err, Ok
 
 from app.auth import current_user, validate_csrf
 from app.db import Session
-from result import Err, Ok
 
 app = Bottle()
 TEMPLATE_PATH.insert(0, os.path.join(os.path.dirname(__file__), "templates"))
@@ -35,4 +35,4 @@ def shutdown_session():
 
 
 # imported at the bottom to avoid circular imports
-from app import routes, errors  # noqa: E402,F401
+from app import errors, routes  # noqa: E402,F401

@@ -1,8 +1,14 @@
-from wtforms import Form, StringField, PasswordField, BooleanField, SubmitField
-from wtforms import TextAreaField
-from wtforms.validators import ValidationError, DataRequired, Email, EqualTo, Length
-
 import sqlalchemy as sa
+from wtforms import (
+    BooleanField,
+    Form,
+    PasswordField,
+    StringField,
+    SubmitField,
+    TextAreaField,
+)
+from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
+
 from app.db import Session
 from app.models import User
 

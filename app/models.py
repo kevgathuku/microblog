@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from hashlib import md5
 from typing import Optional
+
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from werkzeug.security import check_password_hash, generate_password_hash

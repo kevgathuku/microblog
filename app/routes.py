@@ -1,15 +1,22 @@
 from urllib.parse import urlsplit
 
-from bottle import jinja2_template, request, redirect, abort
-
 import sqlalchemy as sa
+from bottle import abort, jinja2_template, redirect, request
+
 from app import app
-from app.auth import current_user, flash, get_flashed_messages, login_required
-from app.auth import get_or_set_csrf_token, login_user, logout_user
+from app.auth import (
+    current_user,
+    flash,
+    get_flashed_messages,
+    get_or_set_csrf_token,
+    login_required,
+    login_user,
+    logout_user,
+)
 from app.db import Session
 from app.forms import BottleFormData, EditProfileForm, LoginForm, RegistrationForm
-from app.urls import url
 from app.models import User
+from app.urls import url
 
 
 def render(tpl, **ctx):

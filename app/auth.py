@@ -2,13 +2,13 @@ import hmac
 import secrets
 from functools import wraps
 
-from bottle import request, response, redirect
+from bottle import redirect, request, response
 from result import Err, Ok, Result
 
-from config import config
 from app.db import Session
 from app.models import User
 from app.urls import url
+from config import config
 
 
 class AnonymousUser:

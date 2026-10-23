@@ -1,6 +1,5 @@
-from config import config
-
 from app import app
+from config import config
 
 if __name__ == "__main__":
     if config.DEBUG:
