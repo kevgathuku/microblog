@@ -43,7 +43,7 @@ def redirected_to(response, suffix):
     assert unquote(response.location).endswith(suffix)
 
 
-def register(client, username="tester", email="tester@example.com"):
+def register(client, username, email):
     token = csrf_token(client.get("/register").text)
     return client.post(
         "/register",
@@ -70,7 +70,9 @@ def test_auth_guard_redirects_anonymous(client):
 
 
 def test_register_then_login_flow(client):
-    redirected_to(register(client), "/login")
+    redirected_to(
+        register(client, username="tester", email="tester@example.com"), "/login"
+    )
     redirected_to(login(client, username="tester"), "/index")
     assert "Hi, tester" in client.get("/").text
 
@@ -85,7 +87,7 @@ def test_post_without_csrf_token_is_rejected(client):
 
 
 def test_bad_password_flashes_error(client):
-    register(client)
+    register(client, username="tester", email="tester@example.com")
     token = csrf_token(client.get("/login").text)
     redirected_to(
         client.post(
@@ -112,7 +114,7 @@ def test_edit_profile_renames_user(client):
 
 
 def test_follow_unfollow_flow(client):
-    register(client)
+    register(client, username="tester", email="tester@example.com")
     register(client, username="followed", email="followed@example.com")
     login(client, username="tester")
     page = client.get("/profile/followed").text
@@ -134,7 +136,7 @@ def test_follow_unfollow_flow(client):
 
 
 def test_follow_without_csrf_token_goes_index(client):
-    register(client)
+    register(client, username="tester", email="tester@example.com")
     register(client, username="followed", email="followed@example.com")
     login(client, username="tester")
     redirected_to(client.post("/follow/followed", {}), "/index")
@@ -143,7 +145,7 @@ def test_follow_without_csrf_token_goes_index(client):
 def test_follow_self_post_is_rejected(client):
     # Backstop behind the hidden button: a forged POST with a valid token
     # (harvested from another page) must still be refused.
-    register(client)
+    register(client, username="tester", email="tester@example.com")
     register(client, username="other", email="other@example.com")
     login(client, username="tester")
     token = csrf_token(client.get("/profile/other").text)
@@ -155,7 +157,7 @@ def test_follow_self_post_is_rejected(client):
 
 
 def test_own_profile_shows_no_follow_button(client):
-    register(client)
+    register(client, username="tester", email="tester@example.com")
     login(client, username="tester")
     page = client.get("/profile/tester").text
     assert "Edit your profile" in page
@@ -164,7 +166,7 @@ def test_own_profile_shows_no_follow_button(client):
 
 
 def test_404_while_logged_in_shows_path(client):
-    register(client)
+    register(client, username="tester", email="tester@example.com")
     login(client, username="tester")
     body = client.get("/no-such-page", status=404).text
     assert "Page Not Found" in body and "/no-such-page" in body
