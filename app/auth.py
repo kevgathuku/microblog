@@ -75,8 +75,8 @@ def get_or_set_csrf_token():
     return token
 
 
-def validate_csrf():
-    submitted = request.forms.get("csrf_token")
-    expected = request.get_cookie("csrf_token", secret=config.SECRET_KEY)
+def validate_csrf(req):
+    submitted = req.forms.get("csrf_token")
+    expected = req.get_cookie("csrf_token", secret=config.SECRET_KEY)
     if not submitted or not expected or not hmac.compare_digest(submitted, expected):
         abort(400, "CSRF validation failed")

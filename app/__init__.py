@@ -21,7 +21,7 @@ def update_last_seen():
 @app.hook("before_request")
 def check_csrf():
     if request.method == "POST":
-        validate_csrf()
+        validate_csrf(request)
 
 
 @app.hook("after_request")
