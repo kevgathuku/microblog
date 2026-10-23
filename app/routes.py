@@ -22,7 +22,7 @@ from app.urls import url
 def render(tpl, **ctx):
     ctx.setdefault("current_user", current_user())
     ctx.setdefault("messages", get_flashed_messages())
-    ctx.setdefault("csrf_token", get_or_set_csrf_token())
+    ctx.setdefault("csrf_token", get_or_set_csrf_token(request))
     ctx.setdefault("url", url)
     return jinja2_template(tpl, **ctx)
 

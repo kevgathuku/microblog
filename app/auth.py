@@ -68,8 +68,8 @@ def get_flashed_messages():
     return []
 
 
-def get_or_set_csrf_token():
-    token = request.get_cookie("csrf_token", secret=config.SECRET_KEY)
+def get_or_set_csrf_token(req) -> str:
+    token = req.get_cookie("csrf_token", secret=config.SECRET_KEY)
     if token is None:
         token = secrets.token_urlsafe(32)
         response.set_cookie("csrf_token", token, **cookie_options())
