@@ -107,23 +107,40 @@ def test_edit_profile_renames_user():
 
 
 class StubRequest:
-    def __init__(self, form_token, cookie_token):
+    def __init__(self, *, form_token, cookie_token, cookie_secret=None):
+        from config import config as cfg
+
         self.forms = {"csrf_token": form_token}
         self._cookie_token = cookie_token
+        self._cookie_secret = cfg.SECRET_KEY if cookie_secret is None else cookie_secret
 
     def get_cookie(self, name, secret=None):
         assert name == "csrf_token"
+        if secret != self._cookie_secret:
+            return None
         return self._cookie_token
 
 
 def test_validate_csrf_unit():
     from app.auth import validate_csrf
 
-    assert validate_csrf(StubRequest("abc", "abc")).is_ok()
+    assert validate_csrf(StubRequest(form_token="abc", cookie_token="abc")).is_ok()
     assert (
-        validate_csrf(StubRequest("abc", "xyz")).unwrap_err() == "csrf token mismatch"
+        validate_csrf(StubRequest(form_token="abc", cookie_token="xyz")).unwrap_err()
+        == "csrf token mismatch"
     )
-    assert validate_csrf(StubRequest(None, "abc")).unwrap_err() == "missing csrf token"
+    assert (
+        validate_csrf(StubRequest(form_token=None, cookie_token="abc")).unwrap_err()
+        == "missing csrf token"
+    )
+    assert (
+        validate_csrf(
+            StubRequest(
+                form_token="abc", cookie_token="abc", cookie_secret="wrong-secret"
+            )
+        ).unwrap_err()
+        == "missing csrf token"
+    )
 
 
 def test_url_reversing():
