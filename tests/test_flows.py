@@ -92,6 +92,14 @@ def test_edit_profile_renames_user():
     assert "User: renamed" in client.get("/profile/renamed").text
 
 
+def test_url_reversing():
+    from app.urls import url
+
+    assert url("index") == "/"
+    assert url("login") == "/login"
+    assert url("profile", username="ann") == "/profile/ann"
+
+
 def test_custom_404_shows_path():
     body = TestApp(app).get("/no-such-page", status=404).text
     assert "Page Not Found" in body and "/no-such-page" in body

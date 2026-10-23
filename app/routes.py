@@ -8,6 +8,7 @@ from app.auth import current_user, flash, get_flashed_messages, login_required
 from app.auth import get_or_set_csrf_token, login_user, logout_user
 from app.db import Session
 from app.forms import BottleFormData, EditProfileForm, LoginForm, RegistrationForm
+from app.urls import url
 from app.models import User
 
 
@@ -15,11 +16,12 @@ def render(tpl, **ctx):
     ctx.setdefault("current_user", current_user())
     ctx.setdefault("messages", get_flashed_messages())
     ctx.setdefault("csrf_token", get_or_set_csrf_token())
+    ctx.setdefault("url", url)
     return jinja2_template(tpl, **ctx)
 
 
-@app.route("/")
-@app.route("/index")
+@app.route("/index", name="index")
+@app.route("/", name="index")
 @login_required
 def index():
     posts = [
@@ -30,7 +32,7 @@ def index():
     return render("index.html", title="Home", posts=posts)
 
 
-@app.route("/login", method=["GET", "POST"])
+@app.route("/login", name="login", method=["GET", "POST"])
 def login():
     if current_user().is_authenticated:
         return redirect("/index")
@@ -54,7 +56,7 @@ def login():
     return render("login.html", title="Sign In", form=form)
 
 
-@app.route("/register", method=["GET", "POST"])
+@app.route("/register", name="register", method=["GET", "POST"])
 def register():
     if current_user().is_authenticated:
         return redirect("/index")
@@ -73,7 +75,7 @@ def register():
     return render("register.html", title="Register", form=form)
 
 
-@app.route("/profile/<username>")
+@app.route("/profile/<username>", name="profile")
 @login_required
 def profile(username):
     user = Session.scalar(sa.select(User).where(User.username == username))
@@ -86,7 +88,7 @@ def profile(username):
     return render("profile.html", user=user, posts=posts)
 
 
-@app.route("/edit_profile", method=["GET", "POST"])
+@app.route("/edit_profile", name="edit_profile", method=["GET", "POST"])
 @login_required
 def edit_profile():
     me = current_user()
@@ -107,7 +109,7 @@ def edit_profile():
     return render("edit_profile.html", title="Edit Profile", form=form)
 
 
-@app.route("/logout")
+@app.route("/logout", name="logout")
 def logout():
     logout_user()
     return redirect("/index")

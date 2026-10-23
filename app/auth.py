@@ -7,6 +7,7 @@ from bottle import abort, request, response, redirect
 from config import config
 from app.db import Session
 from app.models import User
+from app.urls import url
 
 
 class AnonymousUser:
@@ -48,7 +49,7 @@ def login_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         if not current_user().is_authenticated:
-            redirect("/login?next={}".format(request.path))
+            redirect(url("login") + "?next={}".format(request.path))
         return func(*args, **kwargs)
 
     return wrapper

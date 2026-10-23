@@ -3,6 +3,7 @@ from bottle import jinja2_template, request, response
 from app import app
 from app.auth import current_user, get_flashed_messages
 from app.db import Session
+from app.urls import url
 
 
 def render_error(tpl):
@@ -13,6 +14,7 @@ def render_error(tpl):
         current_user=current_user(),
         messages=get_flashed_messages(),
         request=request,
+        url=url,
     )
 
 
