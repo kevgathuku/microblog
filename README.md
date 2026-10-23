@@ -33,6 +33,18 @@ uv run alembic upgrade head   # create / migrate the local database
 uv run python microblog.py
 ```
 
+### Tests
+
+```sh
+uv run pytest -q            # serial
+uv run pytest -n auto -q    # parallel, one worker per CPU
+uv run pytest -n 4 -q       # parallel, explicit worker count
+```
+
+Parallel-safe: each pytest-xdist worker gets its own sqlite file
+(`mkstemp` at import in `tests/test_flows.py`), and the `client`
+fixture wipes the DB per test.
+
 ### Environments
 
 `MICROBLOG_ENV` selects `config.py` settings (`development` default,
