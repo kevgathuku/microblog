@@ -17,12 +17,12 @@ class AnonymousUser:
     username = None
 
 
-def current_user():
-    if "microblog.user" not in request.environ:
-        user_id = request.get_cookie("user_id", secret=config.SECRET_KEY)
+def current_user(req):
+    if "microblog.user" not in req.environ:
+        user_id = req.get_cookie("user_id", secret=config.SECRET_KEY)
         user = Session.get(User, int(user_id)) if user_id is not None else None
-        request.environ["microblog.user"] = user or AnonymousUser()
-    return request.environ["microblog.user"]
+        req.environ["microblog.user"] = user or AnonymousUser()
+    return req.environ["microblog.user"]
 
 
 def cookie_options():
@@ -49,7 +49,7 @@ def logout_user():
 def login_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if not current_user().is_authenticated:
+        if not current_user(request).is_authenticated:
             redirect(url("login") + "?next={}".format(request.path))
         return func(*args, **kwargs)
 

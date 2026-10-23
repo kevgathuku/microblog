@@ -20,7 +20,7 @@ from app.urls import url
 
 
 def render(tpl, **ctx):
-    ctx.setdefault("current_user", current_user())
+    ctx.setdefault("current_user", current_user(request))
     ctx.setdefault("messages", get_flashed_messages())
     ctx.setdefault("csrf_token", get_or_set_csrf_token(request))
     ctx.setdefault("url", url)
@@ -41,7 +41,7 @@ def index():
 
 @app.route("/login", name="login", method=["GET", "POST"])
 def login():
-    if current_user().is_authenticated:
+    if current_user(request).is_authenticated:
         return redirect("/index")
     form = (
         LoginForm(BottleFormData(request.forms))
@@ -65,7 +65,7 @@ def login():
 
 @app.route("/register", name="register", method=["GET", "POST"])
 def register():
-    if current_user().is_authenticated:
+    if current_user(request).is_authenticated:
         return redirect("/index")
     form = (
         RegistrationForm(BottleFormData(request.forms))
@@ -98,7 +98,7 @@ def profile(username):
 @app.route("/edit_profile", name="edit_profile", method=["GET", "POST"])
 @login_required
 def edit_profile():
-    me = current_user()
+    me = current_user(request)
     form = (
         EditProfileForm(me.username, BottleFormData(request.forms))
         if request.method == "POST"

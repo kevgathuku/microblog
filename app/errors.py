@@ -11,7 +11,7 @@ def render_error(tpl):
     Session.rollback()
     return jinja2_template(
         tpl,
-        current_user=current_user(),
+        current_user=current_user(request),
         messages=get_flashed_messages(),
         request=request,
         url=url,

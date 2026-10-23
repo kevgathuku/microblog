@@ -13,7 +13,7 @@ TEMPLATE_PATH.insert(0, os.path.join(os.path.dirname(__file__), "templates"))
 
 @app.hook("before_request")
 def update_last_seen():
-    user = current_user()
+    user = current_user(request)
     if user.is_authenticated:
         user.last_seen = datetime.now(timezone.utc)
         Session.commit()
