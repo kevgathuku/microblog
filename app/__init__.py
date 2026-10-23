@@ -1,10 +1,11 @@
 import os
 from datetime import datetime, timezone
 
-from bottle import Bottle, TEMPLATE_PATH, request
+from bottle import Bottle, TEMPLATE_PATH, abort, request
 
 from app.auth import current_user, validate_csrf
 from app.db import Session
+from result import Err, Ok
 
 app = Bottle()
 TEMPLATE_PATH.insert(0, os.path.join(os.path.dirname(__file__), "templates"))
@@ -21,7 +22,11 @@ def update_last_seen():
 @app.hook("before_request")
 def check_csrf():
     if request.method == "POST":
-        validate_csrf(request)
+        match validate_csrf(request):
+            case Ok():
+                return
+            case Err(e):
+                abort(400, "CSRF validation failed: {}".format(e))
 
 
 @app.hook("after_request")

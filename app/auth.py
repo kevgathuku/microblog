@@ -2,7 +2,8 @@ import hmac
 import secrets
 from functools import wraps
 
-from bottle import abort, request, response, redirect
+from bottle import request, response, redirect
+from result import Err, Ok, Result
 
 from config import config
 from app.db import Session
@@ -75,8 +76,11 @@ def get_or_set_csrf_token():
     return token
 
 
-def validate_csrf(req):
+def validate_csrf(req) -> Result[None, str]:
     submitted = req.forms.get("csrf_token")
     expected = req.get_cookie("csrf_token", secret=config.SECRET_KEY)
-    if not submitted or not expected or not hmac.compare_digest(submitted, expected):
-        abort(400, "CSRF validation failed")
+    if not submitted or not expected:
+        return Err("missing csrf token")
+    if not hmac.compare_digest(submitted, expected):
+        return Err("csrf token mismatch")
+    return Ok(None)

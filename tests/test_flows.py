@@ -92,12 +92,6 @@ def test_edit_profile_renames_user():
     assert "User: renamed" in client.get("/profile/renamed").text
 
 
-import pytest
-from bottle import HTTPResponse
-
-from app.auth import validate_csrf
-
-
 class StubRequest:
     def __init__(self, form_token, cookie_token):
         self.forms = {"csrf_token": form_token}
@@ -109,11 +103,13 @@ class StubRequest:
 
 
 def test_validate_csrf_unit():
-    validate_csrf(StubRequest("abc", "abc"))  # matching: no raise
-    with pytest.raises(HTTPResponse):
-        validate_csrf(StubRequest("abc", "xyz"))  # mismatch
-    with pytest.raises(HTTPResponse):
-        validate_csrf(StubRequest(None, "abc"))  # missing field
+    from app.auth import validate_csrf
+
+    assert validate_csrf(StubRequest("abc", "abc")).is_ok()
+    assert (
+        validate_csrf(StubRequest("abc", "xyz")).unwrap_err() == "csrf token mismatch"
+    )
+    assert validate_csrf(StubRequest(None, "abc")).unwrap_err() == "missing csrf token"
 
 
 def test_url_reversing():

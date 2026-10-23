@@ -332,6 +332,7 @@ dependencies = [
     { name = "email-validator" },
     { name = "ipython" },
     { name = "jinja2" },
+    { name = "result" },
     { name = "sqlalchemy" },
     { name = "waitress" },
     { name = "werkzeug" },
@@ -354,6 +355,7 @@ requires-dist = [
     { name = "email-validator", specifier = ">=2.3.0" },
     { name = "ipython", specifier = ">=9.17.1" },
     { name = "jinja2", specifier = ">=3.1.6" },
+    { name = "result", specifier = ">=0.17.0" },
     { name = "sqlalchemy", specifier = ">=2.1.6" },
     { name = "waitress", specifier = ">=3.0.2" },
     { name = "werkzeug", specifier = ">=3.1.9" },
@@ -557,6 +559,15 @@ name = "pyyaml"
 version = "6.0.3"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/05/8e/961c0007c59b8dd7729d542c61a4d537767a59645b82a0b521206e1e25c2/pyyaml-6.0.3.tar.gz", hash = "sha256:d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f", size = 130960, upload-time = "2025-09-25T21:33:16.546Z" }
+
+[[package]]
+name = "result"
+version = "0.17.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a3/47/2175be65744aa4d8419c27bd3a7a7d65af5bcad7a4dc6a812c00778754f0/result-0.17.0.tar.gz", hash = "sha256:b73da420c0cb1a3bf741dbd41ff96dedafaad6a1b3ef437a9e33e380bb0d91cf", size = 20180, upload-time = "2024-06-02T16:39:54.51Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e2/90/19110ce9374c3db619e2df0816f2c58e4ddc5cdad5f7284cd81d8b30b7cb/result-0.17.0-py3-none-any.whl", hash = "sha256:49fd668b4951ad15800b8ccefd98b6b94effc789607e19c65064b775570933e8", size = 11689, upload-time = "2024-06-02T16:39:52.715Z" },
+]
 
 [[package]]
 name = "soupsieve"
