@@ -2,7 +2,22 @@
 
 Following along the [Flask Mega tutorial](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world)
 
-## Development
+### Bottle port
+
+This branch ports the app from Flask to [Bottle](https://bottlepy.org/).
+Same pages and behavior; framework pieces replaced:
+
+- routing / templates: Bottle + Jinja2 (`jinja2_template`), paths written out
+  literally (Bottle has no `url_for`)
+- auth: signed cookies (`user_id`) instead of Flask-Login; `remember me`
+  sets a 30-day cookie, otherwise a session cookie
+- forms: plain WTForms (no Flask-WTF); CSRF via synchronizer token in a
+  signed cookie, enforced for every POST by a `before_request` hook
+- db: plain SQLAlchemy (`app/db.py`); tables auto-created on startup,
+  no migrations in this branch
+- flash messages: single-message signed cookie instead of Flask sessions
+
+### Fresh-clone setup
 
 Managed with [uv](https://docs.astral.sh/uv/). Python version is pinned via
 `.python-version` (`uv python pin 3.15`) and `requires-python` in `pyproject.toml`.
@@ -12,13 +27,14 @@ Managed with [uv](https://docs.astral.sh/uv/). Python version is pinned via
 ```sh
 uv sync                 # create .venv with the exact locked env (fetches Python itself if needed)
 uv run pre-commit install   # enable the black pre-commit hook (downloads hook env on first run)
-direnv allow            # optional: auto-activates .venv on cd, so bare `flask` works
-uv run flask db upgrade # create / migrate the local database
+direnv allow            # optional: auto-activates .venv on cd
 ```
 
+uv run alembic upgrade head   # create / migrate the local database
+
 ```sh
-# run the app (no activation needed)
-uv run flask run
+# run the app (debug + auto-reload, http://localhost:5000)
+uv run python microblog.py
 
 # add / remove dependencies
 uv add <pkg>
@@ -29,18 +45,23 @@ uv lock --upgrade-package <pkg>
 uv sync --upgrade
 ```
 
-DB operations
+Schema changes: edit `app/models.py`, then
 
 ```sh
-# Downgrade all migrations
-flask db downgrade base
-
-# Migrate up to the latest migration
-flask db upgrade
+uv run alembic revision --autogenerate -m "describe change"
+# review migrations/versions/*.py, then
+uv run alembic upgrade head
 ```
 
-Start a Python interpreter in the context of the application
+Start a Python interpreter with the app loaded:
 
 ```sh
-flask shell
+uv run ipython
+```
+
+```python
+from app.db import Session
+from app.models import User
+import sqlalchemy as sa
+Session.scalars(sa.select(User)).all()
 ```

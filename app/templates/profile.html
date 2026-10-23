@@ -13,7 +13,7 @@
   </table>
   {# Only enabled when the user is viewing their own profile #}
   {% if user == current_user %}
-    <p><a href="{{ url_for('edit_profile') }}">Edit your profile</a></p>
+    <p><a href="/edit_profile">Edit your profile</a></p>
   {% endif %}
   <hr>
   {% for post in posts %}

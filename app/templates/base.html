@@ -12,24 +12,22 @@
 <body>
   <div>
     Microblog:
-    <a href="{{ url_for('index') }}">Home</a>
+    <a href="/">Home</a>
     {% if current_user.is_anonymous %}
-      <a href="{{ url_for('login') }}">Login</a>
+      <a href="/login">Login</a>
     {% else %}
-      <a href="{{ url_for('profile', username=current_user.username) }}">Profile</a>
-      <a href="{{ url_for('logout') }}">Logout</a>
+      <a href="/profile/{{ current_user.username }}">Profile</a>
+      <a href="/logout">Logout</a>
     {% endif %}
   </div>
   <hr>
-  {% with messages = get_flashed_messages() %}
-    {% if messages %}
+  {% if messages %}
     <ul>
       {% for message in messages %}
       <li>{{ message }}</li>
       {% endfor %}
     </ul>
     {% endif %}
-  {% endwith %}
   {% block content %}{% endblock %}
 </body>
 

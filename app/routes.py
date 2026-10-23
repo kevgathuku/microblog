@@ -1,18 +1,21 @@
-from datetime import datetime, timezone
 from urllib.parse import urlsplit
-from flask import render_template, flash, redirect, url_for, request
-from flask_login import current_user, login_user, logout_user, login_required
+
+from bottle import jinja2_template, request, redirect, abort
+
 import sqlalchemy as sa
-from app import app, db
-from app.forms import LoginForm, RegistrationForm, EditProfileForm
+from app import app
+from app.auth import current_user, flash, get_flashed_messages, login_required
+from app.auth import get_or_set_csrf_token, login_user, logout_user
+from app.db import Session
+from app.forms import BottleFormData, EditProfileForm, LoginForm, RegistrationForm
 from app.models import User
 
 
-@app.before_request
-def before_request():
-    if current_user.is_authenticated:
-        current_user.last_seen = datetime.now(timezone.utc)
-        db.session.commit()
+def render(tpl, **ctx):
+    ctx.setdefault("current_user", current_user())
+    ctx.setdefault("messages", get_flashed_messages())
+    ctx.setdefault("csrf_token", get_or_set_csrf_token())
+    return jinja2_template(tpl, **ctx)
 
 
 @app.route("/")
@@ -24,73 +27,87 @@ def index():
         {"author": {"username": "Susan"}, "body": "The Avengers movie was so cool!"},
         {"author": {"username": "Vaite"}, "body": "Cash money vaite!"},
     ]
-    return render_template("index.html", title="Home", posts=posts)
+    return render("index.html", title="Home", posts=posts)
 
 
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/login", method=["GET", "POST"])
 def login():
-    if current_user.is_authenticated:
-        return redirect(url_for("index"))
-    form = LoginForm()
-    if form.validate_on_submit():
-        user = db.session.scalar(
+    if current_user().is_authenticated:
+        return redirect("/index")
+    form = (
+        LoginForm(BottleFormData(request.forms))
+        if request.method == "POST"
+        else LoginForm()
+    )
+    if request.method == "POST" and form.validate():
+        user = Session.scalar(
             sa.select(User).where(User.username == form.username.data)
         )
         if user is None or not user.check_password(form.password.data):
             flash("Invalid username or password")
-            return redirect(url_for("login"))
+            return redirect("/login")
         login_user(user, remember=form.remember_me.data)
-        next_page = request.args.get("next")
+        next_page = request.query.next
         if not next_page or urlsplit(next_page).netloc != "":
-            next_page = url_for("index")
-        return redirect(url_for("index"))
-    return render_template("login.html", title="Sign In", form=form)
+            next_page = "/index"
+        return redirect(next_page)
+    return render("login.html", title="Sign In", form=form)
 
 
-@app.route("/register", methods=["GET", "POST"])
+@app.route("/register", method=["GET", "POST"])
 def register():
-    if current_user.is_authenticated:
-        return redirect(url_for("index"))
-    form = RegistrationForm()
-    if form.validate_on_submit():
+    if current_user().is_authenticated:
+        return redirect("/index")
+    form = (
+        RegistrationForm(BottleFormData(request.forms))
+        if request.method == "POST"
+        else RegistrationForm()
+    )
+    if request.method == "POST" and form.validate():
         user = User(username=form.username.data, email=form.email.data)
         user.set_password(form.password.data)
-        db.session.add(user)
-        db.session.commit()
+        Session.add(user)
+        Session.commit()
         flash("Congratulations, you are now a registered user!")
-        return redirect(url_for("login"))
-    return render_template("register.html", title="Register", form=form)
+        return redirect("/login")
+    return render("register.html", title="Register", form=form)
 
 
 @app.route("/profile/<username>")
 @login_required
 def profile(username):
-    user = db.first_or_404(sa.select(User).where(User.username == username))
+    user = Session.scalar(sa.select(User).where(User.username == username))
+    if user is None:
+        abort(404)
     posts = [
         {"author": user, "body": "Test post #1"},
         {"author": user, "body": "Test post #2"},
     ]
-    return render_template("profile.html", user=user, posts=posts)
+    return render("profile.html", user=user, posts=posts)
 
 
-@app.route("/edit_profile", methods=["GET", "POST"])
+@app.route("/edit_profile", method=["GET", "POST"])
 @login_required
 def edit_profile():
-    # Username needed for uniqueness check on submit
-    form = EditProfileForm(current_user.username)
-    if form.validate_on_submit():
-        current_user.username = form.username.data
-        current_user.about_me = form.about_me.data
-        db.session.commit()
+    me = current_user()
+    form = (
+        EditProfileForm(me.username, BottleFormData(request.forms))
+        if request.method == "POST"
+        else EditProfileForm(me.username)
+    )
+    if request.method == "POST" and form.validate():
+        me.username = form.username.data
+        me.about_me = form.about_me.data
+        Session.commit()
         flash("Your changes have been saved.")
-        return redirect(url_for("edit_profile"))
+        return redirect("/edit_profile")
     elif request.method == "GET":
-        form.username.data = current_user.username
-        form.about_me.data = current_user.about_me
-    return render_template("edit_profile.html", title="Edit Profile", form=form)
+        form.username.data = me.username
+        form.about_me.data = me.about_me
+    return render("edit_profile.html", title="Edit Profile", form=form)
 
 
 @app.route("/logout")
 def logout():
     logout_user()
-    return redirect(url_for("index"))
+    return redirect("/index")

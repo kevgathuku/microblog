@@ -1,14 +1,28 @@
-from flask import render_template
-from app import app, db
+from bottle import jinja2_template, request, response
+
+from app import app
+from app.auth import current_user, get_flashed_messages
+from app.db import Session
 
 
-@app.errorhandler(404)
-def not_found_error(error):
-    return render_template("404.html"), 404
-
-
-@app.errorhandler(500)
-def internal_error(error):
+def render_error(tpl):
     # reset the session so a failed transaction can't break rendering below
-    db.session.rollback()
-    return render_template("500.html"), 500
+    Session.rollback()
+    return jinja2_template(
+        tpl,
+        current_user=current_user(),
+        messages=get_flashed_messages(),
+        request=request,
+    )
+
+
+@app.error(404)
+def not_found(error):
+    response.status = 404
+    return render_error("404.html")
+
+
+@app.error(500)
+def internal_error(error):
+    response.status = 500
+    return render_error("500.html")

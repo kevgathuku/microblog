@@ -1,38 +1,33 @@
 import os
-import logging
-from logging.handlers import RotatingFileHandler
+from datetime import datetime, timezone
 
-from flask import Flask
-from config import Config
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
-from flask_migrate import Migrate
+from bottle import Bottle, TEMPLATE_PATH, request
 
-app = Flask(__name__)
-app.config.from_object(Config)
+from app.auth import current_user, validate_csrf
+from app.db import Session
 
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+app = Bottle()
+TEMPLATE_PATH.insert(0, os.path.join(os.path.dirname(__file__), "templates"))
 
-login = LoginManager(app)
-login.login_view = "login"
 
-if not app.debug:
-    if not os.path.exists("logs"):
-        os.mkdir("logs")
-    file_handler = RotatingFileHandler(
-        "logs/microblog.log", maxBytes=10240, backupCount=10
-    )
-    file_handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]"
-        )
-    )
-    file_handler.setLevel(logging.INFO)
-    app.logger.addHandler(file_handler)
+@app.hook("before_request")
+def update_last_seen():
+    user = current_user()
+    if user.is_authenticated:
+        user.last_seen = datetime.now(timezone.utc)
+        Session.commit()
 
-    app.logger.setLevel(logging.INFO)
-    app.logger.info("Microblog startup")
+
+@app.hook("before_request")
+def check_csrf():
+    if request.method == "POST":
+        validate_csrf()
+
+
+@app.hook("after_request")
+def shutdown_session():
+    Session.remove()
+
 
 # imported at the bottom to avoid circular imports
-from app import routes, models, errors
+from app import routes, errors  # noqa: E402,F401

@@ -5,7 +5,7 @@
 <h1>Sign In</h1>
 {# action=""  the form is submitted to the URL that rendered the form #}
 <form action="" method="post" novalidate>
-  {{ form.hidden_tag() }}
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <p>
     {{ form.username.label }}<br>
     {{ form.username(size=32) }}<br>
@@ -28,6 +28,6 @@
   <p>{{ form.submit() }}</p>
 </form>
 
- <p>New User? <a href="{{ url_for('register') }}">Click to Register!</a></p>
+ <p>New User? <a href="/register">Click to Register!</a></p>
 
 {% endblock %}

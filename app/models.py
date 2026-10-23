@@ -3,13 +3,14 @@ from hashlib import md5
 from typing import Optional
 import sqlalchemy as sa
 import sqlalchemy.orm as so
-from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
-from app import db, login
+from app.db import Base
 
 
-class User(UserMixin, db.Model):
+class User(Base):
+    __tablename__ = "user"
+
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True, unique=True)
     email: so.Mapped[str] = so.mapped_column(sa.String(120), index=True, unique=True)
@@ -20,9 +21,12 @@ class User(UserMixin, db.Model):
     password_hash: so.Mapped[Optional[str]] = so.mapped_column(sa.String(256))
     posts: so.WriteOnlyMapped["Post"] = so.relationship(back_populates="author")
 
-    @login.user_loader
-    def load_user(id):
-        return db.session.get(User, int(id))
+    # minimal login contract (replaces flask-login's UserMixin)
+    is_authenticated = True
+    is_anonymous = False
+
+    def get_id(self):
+        return str(self.id)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -38,7 +42,9 @@ class User(UserMixin, db.Model):
         return "<User {}>".format(self.username)
 
 
-class Post(db.Model):
+class Post(Base):
+    __tablename__ = "post"
+
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     body: so.Mapped[str] = so.mapped_column(sa.String(140))
     timestamp: so.Mapped[datetime] = so.mapped_column(

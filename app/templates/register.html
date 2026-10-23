@@ -3,7 +3,7 @@
 {% block content %}
     <h1>Register</h1>
     <form action="" method="post">
-        {{ form.hidden_tag() }}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <p>
             {{ form.username.label }}<br>
             {{ form.username(size=32) }}<br>
