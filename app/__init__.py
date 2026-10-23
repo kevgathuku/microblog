@@ -17,7 +17,8 @@ migrate = Migrate(app, db)
 login = LoginManager(app)
 login.login_view = "login"
 
-if not app.debug:
+# conftest sets MICROBLOG_ENV=testing; tests assert on responses, never logs.
+if not app.debug and os.environ.get("MICROBLOG_ENV") != "testing":
     if not os.path.exists("logs"):
         os.mkdir("logs")
     file_handler = RotatingFileHandler(

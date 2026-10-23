@@ -17,5 +17,8 @@ dependencies = [
 dev = [
     "black==26.10.1",
     "pre-commit>=4.7.0",
+    "pytest>=9.1.1",
+    "pytest-xdist>=3.8.0",
     "python-dotenv==1.2.4",
+    "webtest>=3.0.7",
 ]
