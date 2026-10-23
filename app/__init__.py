@@ -1,14 +1,37 @@
+import logging
 import os
 from datetime import datetime, timezone
+from logging.handlers import RotatingFileHandler
 
 from bottle import TEMPLATE_PATH, Bottle, abort, request
 from result import Err, Ok
 
 from app.auth import current_user, validate_csrf
 from app.db import Session
+from config import config
 
 app = Bottle()
 TEMPLATE_PATH.insert(0, os.path.join(os.path.dirname(__file__), "templates"))
+
+logger = logging.getLogger("microblog")
+if config.TESTING:
+    # Tests assert on responses, never on logs - stay silent (also silences
+    # the 500 handler, which reuses this named logger). No handlers, no files.
+    logger.disabled = True
+elif not config.DEBUG and not logger.handlers:
+    os.makedirs("bottle-logs", exist_ok=True)
+    file_handler = RotatingFileHandler(
+        "bottle-logs/microblog.log", maxBytes=10240, backupCount=10
+    )
+    file_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]"
+        )
+    )
+    file_handler.setLevel(logging.INFO)
+    logger.addHandler(file_handler)
+    logger.setLevel(logging.INFO)
+    logger.info("Microblog startup")
 
 
 @app.hook("before_request")

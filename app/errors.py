@@ -1,3 +1,5 @@
+import logging
+
 from bottle import jinja2_template, request, response
 
 from app import app
@@ -32,5 +34,13 @@ def not_found(error):
 
 @app.error(500)
 def internal_error(error):
+    # Bottle runs handlers outside the except block, so exc_info is dead -
+    # the HTTPError carries the original exception + formatted traceback.
+    logger = logging.getLogger("microblog")
+    logger.error(
+        "500 Internal Server Error on %s: %s",
+        request.path,
+        getattr(error, "traceback", None) or getattr(error, "exception", error),
+    )
     response.status = 500
     return render_error("500.html")
