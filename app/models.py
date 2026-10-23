@@ -8,6 +8,13 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from app import db, login
 
+followers = sa.Table(
+    "followers",
+    db.metadata,
+    sa.Column("follower_id", sa.Integer, sa.ForeignKey("user.id"), primary_key=True),
+    sa.Column("followed_id", sa.Integer, sa.ForeignKey("user.id"), primary_key=True),
+)
+
 
 class User(UserMixin, db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
@@ -19,6 +26,21 @@ class User(UserMixin, db.Model):
     )
     password_hash: so.Mapped[Optional[str]] = so.mapped_column(sa.String(256))
     posts: so.WriteOnlyMapped["Post"] = so.relationship(back_populates="author")
+    following: so.WriteOnlyMapped["User"] = so.relationship(
+        # the association table
+        secondary=followers,
+        # User entity -> association table
+        primaryjoin=(followers.c.follower_id == id),
+        # Association table -> User
+        secondaryjoin=(followers.c.followed_id == id),
+        back_populates="followers",
+    )
+    followers: so.WriteOnlyMapped["User"] = so.relationship(
+        secondary=followers,
+        primaryjoin=(followers.c.followed_id == id),
+        secondaryjoin=(followers.c.follower_id == id),
+        back_populates="following",
+    )
 
     @login.user_loader
     def load_user(id):
