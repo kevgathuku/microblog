@@ -16,6 +16,12 @@ def render_error(tpl):
     )
 
 
+@app.error(400)
+def bad_request(error):
+    response.status = 400
+    return render_error("400.html")
+
+
 @app.error(404)
 def not_found(error):
     response.status = 404

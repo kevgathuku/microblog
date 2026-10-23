@@ -13,8 +13,7 @@ Same pages and behavior; framework pieces replaced:
   sets a 30-day cookie, otherwise a session cookie
 - forms: plain WTForms (no Flask-WTF); CSRF via synchronizer token in a
   signed cookie, enforced for every POST by a `before_request` hook
-- db: plain SQLAlchemy (`app/db.py`); tables auto-created on startup,
-  no migrations in this branch
+- db: plain SQLAlchemy (`app/db.py`) with standalone Alembic migrations
 - flash messages: single-message signed cookie instead of Flask sessions
 
 ### Fresh-clone setup
@@ -22,19 +21,29 @@ Same pages and behavior; framework pieces replaced:
 Managed with [uv](https://docs.astral.sh/uv/). Python version is pinned via
 `.python-version` (`uv python pin 3.15`) and `requires-python` in `pyproject.toml`.
 
-### Fresh-clone setup
-
 ```sh
 uv sync                 # create .venv with the exact locked env (fetches Python itself if needed)
 uv run pre-commit install   # enable the black pre-commit hook (downloads hook env on first run)
 direnv allow            # optional: auto-activates .venv on cd
-```
-
 uv run alembic upgrade head   # create / migrate the local database
+```
 
 ```sh
 # run the app (debug + auto-reload, http://localhost:5000)
 uv run python microblog.py
+```
+
+### Environments
+
+`MICROBLOG_ENV` selects `config.py` settings (`development` default,
+`testing` for pytest, `production` for deploy):
+
+```sh
+MICROBLOG_ENV=production SECRET_KEY=<long-random> uv run waitress-serve --listen=0.0.0.0:8000 microblog:app
+```
+
+Production enables `Secure` cookies (needs HTTPS) and disables debug.
+`SECRET_KEY` is required — startup fails loudly without it.
 
 # add / remove dependencies
 uv add <pkg>
