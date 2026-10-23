@@ -13,5 +13,6 @@ _fd, _path = tempfile.mkstemp(
 os.close(_fd)
 atexit.register(lambda: os.path.exists(_path) and os.unlink(_path))
 os.environ["DATABASE_URL"] = "sqlite:///{}".format(_path)
+os.environ["MICROBLOG_ENV"] = "testing"
 # Signed-cookie sessions need a secret; master config has no fallback-safe one.
 os.environ.setdefault("SECRET_KEY", "test-secret-for-pytest")

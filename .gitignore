@@ -140,6 +140,7 @@ falcon.db
 
 # logs
 logs
+falcon-logs/
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/

@@ -42,6 +42,7 @@ Falcon app): e.g. `uv run --with waitress waitress-serve app:app`.
 |----------------|--------------------------------------|--------------------------------------------|
 | `SECRET_KEY`   | `dev-secret-key-change-me`           | Signs the session cookie. Local dev gets a real one from `.env` (see below); set a proper one anywhere beyond local dev. |
 | `DATABASE_URL` | `sqlite:///<repo>/falcon.db`        | SQLite file (or any `sqlite://` URL) the app and `pwmigrate` use. Tests override this per worker (see below). |
+| `DEBUG`        | unset (off)                          | `1`/`true` disables file logging for local dev. Off means prod-like: logs go to `falcon-logs/`. |
 
 `app.db` and `bottle.db` are live databases from earlier iterations —
 nothing here reads or writes them.
@@ -50,6 +51,9 @@ nothing here reads or writes them.
 direnv via `.envrc` (`layout uv` + `dotenv`), so no `export`/prefix is
 needed once you `direnv allow`. Without direnv, either `export SECRET_KEY=…`
 first or prefix each command (`SECRET_KEY=… uv run …`).
+
+`MICROBLOG_ENV=testing` is set by `tests/conftest.py`, never by hand — it
+is the switch that keeps tests log-free and on temp databases.
 
 ### Migrations (`pwmigrate`, via `.pwmigrate`)
 
@@ -70,6 +74,14 @@ uv run pwmigrate fake              # mark pending migrations applied without run
 
 App code never creates tables (only `pwmigrate up` and the test suite do).
 If the server 500s on missing tables, you skipped `pwmigrate up`.
+
+### Logging
+
+Prod-like runs (no `DEBUG`, no `MICROBLOG_ENV=testing`) write
+`falcon-logs/microblog.log` (rotated, 10 × 10 KB) plus a `Microblog startup`
+line, and unhandled exceptions are logged there by the 500 handler.
+`DEBUG=1` or the test suite disables file logging entirely (`falcon-logs/`
+is gitignored).
 
 ### Querying (plain `python` shell)
 
