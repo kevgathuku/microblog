@@ -31,6 +31,12 @@
     {% endif %}
   {% endwith %}
   {% block content %}{% endblock %}
+  <script>
+    // Render UTC instants in the viewer's timezone; UTC text stays as fallback.
+    document.querySelectorAll('[data-utc]').forEach(el => {
+      el.textContent = new Date(el.dataset.utc).toLocaleString();
+    });
+  </script>
 </body>
 
 </html>
