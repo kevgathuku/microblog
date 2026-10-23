@@ -1,4 +1,9 @@
-"""Falcon WSGI app factory (Peewee + Jinja)."""
+"""Falcon WSGI app factory (Peewee + Jinja).
+
+Importing this package has no side effects: the app is only built (and the
+database only verified) when create_app() is called. That keeps `pwmigrate`
+working — it imports app.models, which must not boot the app.
+"""
 
 import logging
 import os
@@ -8,7 +13,7 @@ import falcon
 
 from config import Config, resolve_db_path
 from app.auth import AppMiddleware
-from app.models import DatabaseMiddleware, db
+from app.models import TABLES, DatabaseMiddleware, db
 from app.routes import add_routes, render
 
 logger = logging.getLogger("microblog")
@@ -53,6 +58,19 @@ def create_app(database_url=None):
     if database_url:
         db.init(resolve_db_path(database_url))
     configure_logging()
+    if os.environ.get("MICROBLOG_ENV") != "testing":
+        # Tables come from `pwmigrate up`, never from the app. Fail here
+        # with a clear message instead of 500ing on the first query
+        # (e.g. inside a form validator).
+        db.connect(reuse_if_open=True)
+        try:
+            missing = [m._meta.table_name for m in TABLES if not m.table_exists()]
+        finally:
+            db.close()
+        if missing:
+            raise RuntimeError(
+                "Database tables missing (%s); run `pwmigrate up`." % ", ".join(missing)
+            )
     # Request: connect runs before session/auth (which queries User).
     # Response (reverse order): session cookie is saved before close.
     app = falcon.App(middleware=[DatabaseMiddleware(), AppMiddleware()])
@@ -60,7 +78,3 @@ def create_app(database_url=None):
     app.add_error_handler(falcon.HTTPNotFound, not_found)
     app.add_error_handler(Exception, internal_error)
     return app
-
-
-# WSGI entry point; dev DB is falcon.db unless DATABASE_URL says otherwise.
-app = create_app()

@@ -34,7 +34,7 @@ uv sync --upgrade
 ```
 
 Any WSGI server can serve it instead (`app` in `microblog.py` is the
-Falcon app): e.g. `uv run --with waitress waitress-serve app:app`.
+Falcon app): e.g. `uv run --with waitress waitress-serve microblog:app`.
 
 ### Environment variables
 
