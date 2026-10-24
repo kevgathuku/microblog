@@ -1,9 +1,10 @@
-import os
 import logging
+import os
+import sys
 import time
-from logging.handlers import RotatingFileHandler
 
 from flask import Flask, g, request
+from loguru import logger
 from config import Config
 from flask_login import LoginManager
 
@@ -25,13 +26,23 @@ def _db_connect():
 
 @app.after_request
 def _log_request(response):
-    app.logger.info(
-        "%s %s %s -> %s (%.3fs)",
+    duration_s = time.perf_counter() - g.get("_t", time.perf_counter())
+    qs = request.query_string.decode()
+    url = request.path + (f"?{qs}" if qs else "")
+    logger.bind(
+        ip=request.remote_addr,
+        method=request.method,
+        path=request.path,
+        query=qs,
+        status=response.status_code,
+        duration_ms=round(duration_s * 1000, 3),
+    ).info(
+        "{} {} {} -> {} ({:.3f}s)",
         request.remote_addr,
         request.method,
-        request.path,
+        url,
         response.status_code,
-        time.perf_counter() - g.get("_t", time.perf_counter()),
+        duration_s,
     )
     return response
 
@@ -47,33 +58,53 @@ def load_user(id):
     return User.get_or_none(User.id == int(id))
 
 
-# conftest sets MICROBLOG_ENV=testing; tests assert on responses, never logs.
-# File logging only when debug is off
-if not app.debug and os.environ.get("MICROBLOG_ENV") != "testing":
-    os.makedirs("logs", exist_ok=True)
-    # RotatingFileHandler opens logs/microblog.log on init (delay=False),
-    # plus the "Microblog startup" line below guarantees the file exists
-    # even on a fresh checkout.
-    formatter = logging.Formatter(
-        "%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]"
-    )
-    file_handler = RotatingFileHandler(
-        "logs/microblog.log", maxBytes=10240, backupCount=10
-    )
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(logging.DEBUG)
-    app.logger.addHandler(file_handler)
+# Logging via loguru: stdlib records (Flask's 500 tracebacks, peewee SQL)
+# are funneled into loguru's sinks by InterceptHandler. File logging only
+# when debug is off; conftest sets MICROBLOG_ENV=testing to keep tests quiet.
+class InterceptHandler(logging.Handler):
+    def emit(self, record):
+        try:
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+        # Start outside the handler machinery, then skip any remaining
+        # stdlib logging frames so the location points at the real caller.
+        frame, depth = sys._getframe(6), 6
+        while frame and frame.f_code.co_filename == logging.__file__:
+            frame = frame.f_back
+            depth += 1
+        logger.opt(depth=depth, exception=record.exc_info).log(
+            level, record.getMessage()
+        )
 
+
+if os.environ.get("MICROBLOG_ENV") == "testing":
+    logger.remove()
+elif not app.debug:
+    os.makedirs("logs", exist_ok=True)
+    logger.remove()
+    logger.add(sys.stderr, level="INFO")
+    logger.add(
+        "logs/microblog.log",
+        level="DEBUG",  # peewee SQL is DEBUG: file only, never the console
+        serialize=True,
+        rotation="1 MB",
+        retention=10,
+    )
+    # Flask's default stderr handler must go, or every app log prints twice
+    # (once in Flask's format, once in loguru's).
+    from flask.logging import default_handler
+
+    app.logger.removeHandler(default_handler)
+    app.logger.addHandler(InterceptHandler())
     app.logger.setLevel(logging.INFO)
-    # Console keeps Flask's default stderr handler untouched.
-    # Peewee logs each SQL statement on the 'peewee' logger at DEBUG --
-    # file only, never the console (propagate stays off).
+    # Don't propagate: root handlers (gunicorn, pytest) must not re-emit.
+    app.logger.propagate = False
     peewee_logger = logging.getLogger("peewee")
+    peewee_logger.addHandler(InterceptHandler())
     peewee_logger.setLevel(logging.DEBUG)
-    peewee_logger.addHandler(file_handler)
-    # Don't double-log via the root logger's default handler.
     peewee_logger.propagate = False
-    app.logger.info("Microblog startup")
+    logger.info("Microblog startup")
 
 # imported at the bottom to avoid circular imports
 from app import routes, errors
