@@ -4,18 +4,33 @@ from logging.handlers import RotatingFileHandler
 
 from flask import Flask
 from config import Config
-from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
-from flask_migrate import Migrate
+
+from app.models import User, db
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-
 login = LoginManager(app)
 login.login_view = "login"
+
+
+@app.before_request
+def _db_connect():
+    # Registered before routes' handlers so they can query immediately.
+    db.connect(reuse_if_open=True)
+
+
+@app.teardown_appcontext
+def _db_close(exc):
+    if not db.is_closed():
+        db.close()
+
+
+@login.user_loader
+def load_user(id):
+    return User.get_or_none(User.id == int(id))
+
 
 # conftest sets MICROBLOG_ENV=testing; tests assert on responses, never logs.
 if not app.debug and os.environ.get("MICROBLOG_ENV") != "testing":
@@ -36,4 +51,4 @@ if not app.debug and os.environ.get("MICROBLOG_ENV") != "testing":
     app.logger.info("Microblog startup")
 
 # imported at the bottom to avoid circular imports
-from app import routes, models, errors
+from app import routes, errors

@@ -1,10 +1,7 @@
-import sqlalchemy as sa
-import sqlalchemy.orm as so
-
-# import the flask instance from the app package
 from app import app
+from app.models import Follow, Post, User, db
 
 
 @app.shell_context_processor
 def make_shell_context():
-    return {"sa": sa, "so": so}
+    return {"db": db, "User": User, "Post": Post, "Follow": Follow}

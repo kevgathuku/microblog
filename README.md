@@ -17,8 +17,11 @@ uv run flask db upgrade # create / migrate the local database
 ```
 
 ```sh
-# run the app (no activation needed)
+# run the app
 uv run flask run
+
+# run the app in debug mode
+uv run flask run --debug
 
 # add / remove dependencies
 uv add <pkg>

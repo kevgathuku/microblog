@@ -4,18 +4,20 @@ from urllib.parse import unquote
 import pytest  # noqa: E402
 from webtest import TestApp  # noqa: E402
 
-from app import app, db  # noqa: E402
+from app import app  # noqa: E402
+from app.models import TABLES, db  # noqa: E402
 
 
 @pytest.fixture
 def client():
     ctx = app.app_context()
     ctx.push()
-    db.session.remove()
-    db.drop_all()
-    db.create_all()
+    db.connect(reuse_if_open=True)
+    db.drop_tables(TABLES, safe=True)
+    db.create_tables(TABLES, safe=True)
     yield TestApp(app)
-    db.session.remove()
+    db.drop_tables(TABLES, safe=True)
+    db.close()
     ctx.pop()
 
 
@@ -140,6 +142,23 @@ def test_follow_without_csrf_token_goes_index(client):
     register(client, username="followed", email="followed@example.com")
     login(client, username="tester")
     redirected_to(client.post("/follow/followed", {}), "/index")
+
+
+def test_follow_missing_user_redirects_index(client):
+    register(client, username="tester", email="tester@example.com")
+    register(client, username="other", email="other@example.com")
+    login(client, username="tester")
+    token = csrf_token(client.get("/profile/other").text)
+    redirected_to(
+        client.post("/follow/nobody", {"csrf_token": token}),
+        "/index",
+    )
+    assert "User nobody not found." in client.get("/index").text
+    redirected_to(
+        client.post("/unfollow/nobody", {"csrf_token": token}),
+        "/index",
+    )
+    assert "User nobody not found." in client.get("/index").text
 
 
 def test_follow_self_post_is_rejected(client):

@@ -1,5 +1,5 @@
 from flask import render_template
-from app import app, db
+from app import app
 
 
 @app.errorhandler(404)
@@ -9,6 +9,5 @@ def not_found_error(error):
 
 @app.errorhandler(500)
 def internal_error(error):
-    # reset the session so a failed transaction can't break rendering below
-    db.session.rollback()
+    app.logger.exception("Unhandled exception")
     return render_template("500.html"), 500
