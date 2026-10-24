@@ -194,3 +194,51 @@ def test_404_while_logged_in_shows_path(client):
 def test_custom_404_shows_path(client):
     body = client.get("/no-such-page", status=404).text
     assert "Page Not Found" in body and "/no-such-page" in body
+
+
+def _post(client, body):
+    token = csrf_token(client.get("/").text)
+    redirected_to(client.post("/", {"csrf_token": token, "post": body}), "/index")
+
+
+def test_index_paginates_posts(client):
+    register(client, username="tester", email="tester@example.com")
+    login(client, username="tester")
+    bodies = [f"post number {i}" for i in range(4)]  # POSTS_PER_PAGE is 3
+    for body in bodies:
+        _post(client, body)
+    page1 = client.get("/").text
+    page2 = client.get("/?page=2").text
+    assert "Older posts" in page1 and "Newer posts" not in page1
+    assert "Newer posts" in page2 and "Older posts" not in page2
+    on_page1 = [b for b in bodies if b in page1]
+    on_page2 = [b for b in bodies if b in page2]
+    assert len(on_page1) == 3 and len(on_page2) == 1
+    assert not set(on_page1) & set(on_page2)
+
+
+def test_index_bad_page_param_falls_back_to_page_one(client):
+    register(client, username="tester", email="tester@example.com")
+    login(client, username="tester")
+    for bad in ("0", "-3", "abc", "2.5"):
+        body = client.get(f"/?page={bad}", status=200).text
+        assert "Older posts" not in body and "Newer posts" not in body
+
+
+def test_explore_paginates_posts(client):
+    register(client, username="tester", email="tester@example.com")
+    login(client, username="tester")
+    for i in range(4):
+        _post(client, f"explore post {i}")
+    page1 = client.get("/explore", status=200).text
+    assert "Older posts" in page1 and "Newer posts" not in page1
+    page2 = client.get("/explore?page=2", status=200).text
+    assert "Newer posts" in page2 and "Older posts" not in page2
+
+
+def test_empty_page_redirects_to_first_page(client):
+    register(client, username="tester", email="tester@example.com")
+    login(client, username="tester")
+    _post(client, "only post")
+    redirected_to(client.get("/?page=199"), "/index")
+    redirected_to(client.get("/explore?page=199"), "/explore")

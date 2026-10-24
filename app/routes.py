@@ -40,6 +40,8 @@ def index():
 
     page = max(1, request.args.get("page", 1, type=int))
     posts, has_next = _paginate(current_user.following_posts(), page)
+    if page > 1 and len(posts) == 0:
+        return redirect(url_for("index"))
     next_url = url_for("index", page=page + 1) if has_next else None
     prev_url = url_for("index", page=page - 1) if page > 1 else None
     return render_template(
@@ -57,6 +59,8 @@ def index():
 def explore():
     page = max(1, request.args.get("page", 1, type=int))
     posts, has_next = _paginate(Post.select().order_by(Post.timestamp.desc()), page)
+    if page > 1 and len(posts) == 0:
+        return redirect(url_for("explore"))
     next_url = url_for("explore", page=page + 1) if has_next else None
     prev_url = url_for("explore", page=page - 1) if page > 1 else None
     return render_template(
