@@ -11,7 +11,7 @@ from app.models import User
 def before_request():
     if current_user.is_authenticated:
         current_user.last_seen = datetime.now(timezone.utc)
-        current_user.save()
+        current_user.save(only=[User.last_seen])
 
 
 @app.route("/")
@@ -80,9 +80,9 @@ def edit_profile():
     if form.validate_on_submit():
         current_user.username = form.username.data
         current_user.about_me = form.about_me.data
-        current_user.save()
+        current_user.save(only=[User.username, User.about_me])
         flash("Your changes have been saved.")
-        return redirect(url_for("edit_profile"))
+        return redirect(url_for("profile", username=current_user.username))
     elif request.method == "GET":
         form.username.data = current_user.username
         form.about_me.data = current_user.about_me

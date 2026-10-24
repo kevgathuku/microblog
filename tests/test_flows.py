@@ -110,7 +110,7 @@ def test_edit_profile_renames_user(client):
             "/edit_profile",
             {"csrf_token": token, "username": "renamed", "about_me": "hi"},
         ),
-        "/edit_profile",
+        "/profile/renamed",
     )
     assert "User: renamed" in client.get("/profile/renamed").text
 
