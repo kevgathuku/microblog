@@ -8,6 +8,7 @@ class Config(object):
     DATABASE_URL = os.environ.get("DATABASE_URL") or "sqlite:///" + os.path.join(
         basedir, "app.db"
     )
+    POSTS_PER_PAGE = 3
 
 
 def resolve_db_path(url=None):

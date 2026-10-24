@@ -21,6 +21,13 @@ def before_request():
             current_user.save(only=[User.last_seen])
 
 
+def _paginate(query, page, per_page=app.config["POSTS_PER_PAGE"]):
+    # Peewee's paginate() only slices (LIMIT/OFFSET)
+    # Derive next_num/has_next from a count taken before slicing.
+    total = query.count()
+    return query.paginate(page, per_page), page * per_page < total
+
+
 @app.route("/", methods=["GET", "POST"])
 @app.route("/index", methods=["GET", "POST"])
 @login_required
@@ -30,15 +37,35 @@ def index():
         Post.create(body=form.post.data, author=current_user)
         flash("Your post is now live!")
         return redirect(url_for("index"))
-    posts = current_user.following_posts()
-    return render_template("index.html", title="Home", form=form, posts=posts)
+
+    page = max(1, request.args.get("page", 1, type=int))
+    posts, has_next = _paginate(current_user.following_posts(), page)
+    next_url = url_for("index", page=page + 1) if has_next else None
+    prev_url = url_for("index", page=page - 1) if page > 1 else None
+    return render_template(
+        "index.html",
+        title="Home",
+        form=form,
+        posts=posts,
+        next_url=next_url,
+        prev_url=prev_url,
+    )
 
 
 @app.route("/explore")
 @login_required
 def explore():
-    posts = Post.select().order_by(Post.timestamp.desc())
-    return render_template("index.html", title="Explore", posts=posts)
+    page = max(1, request.args.get("page", 1, type=int))
+    posts, has_next = _paginate(Post.select().order_by(Post.timestamp.desc()), page)
+    next_url = url_for("explore", page=page + 1) if has_next else None
+    prev_url = url_for("explore", page=page - 1) if page > 1 else None
+    return render_template(
+        "index.html",
+        title="Explore",
+        posts=posts,
+        next_url=next_url,
+        prev_url=prev_url,
+    )
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -79,12 +106,27 @@ def profile(username):
     user = User.get_or_none(User.username == username)
     if user is None:
         abort(404)
-    posts = [
-        {"author": user, "body": "Test post #1"},
-        {"author": user, "body": "Test post #2"},
-    ]
     form = EmptyForm()
-    return render_template("profile.html", user=user, posts=posts, form=form)
+
+    page = max(1, request.args.get("page", 1, type=int))
+    posts, has_next = _paginate(
+        user.posts.order_by(Post.timestamp.desc()),
+        page,
+    )
+    next_url = (
+        url_for("profile", username=user.username, page=page + 1) if has_next else None
+    )
+    prev_url = (
+        url_for("profile", username=user.username, page=page - 1) if page > 1 else None
+    )
+    return render_template(
+        "profile.html",
+        user=user,
+        posts=posts,
+        next_url=next_url,
+        prev_url=prev_url,
+        form=form,
+    )
 
 
 @app.route("/edit_profile", methods=["GET", "POST"])
