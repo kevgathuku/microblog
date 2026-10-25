@@ -5,18 +5,18 @@ import time
 
 from flask import Flask, g, request
 from loguru import logger
-from config import Config, resolve_db_path
+from config import config, resolve_db_path
 from flask_login import LoginManager
 from peewee import SqliteDatabase
 
 app = Flask(__name__)
-app.config.from_object(Config)
+app.config.from_object(config[os.environ.get("FLASK_CONFIG", "default")])
 
 login = LoginManager(app)
 login.login_view = "login"
 
 db = SqliteDatabase(None)
-db.init(resolve_db_path(Config.DATABASE_URL))
+db.init(resolve_db_path(app.config["DATABASE_URL"]))
 
 
 @app.before_request
@@ -57,7 +57,7 @@ def _db_close(exc):
 
 # Logging via loguru: stdlib records (Flask's 500 tracebacks, peewee SQL)
 # are funneled into loguru's sinks by InterceptHandler. File logging only
-# when debug is off; conftest sets MICROBLOG_ENV=testing to keep tests quiet.
+# when debug is off; conftest sets FLASK_CONFIG=testing to keep tests quiet.
 class InterceptHandler(logging.Handler):
     def emit(self, record):
         try:
@@ -75,7 +75,7 @@ class InterceptHandler(logging.Handler):
         )
 
 
-if os.environ.get("MICROBLOG_ENV") == "testing":
+if app.testing:
     logger.remove()
 elif not app.debug:
     os.makedirs("logs", exist_ok=True)

@@ -2,15 +2,16 @@ import atexit
 import os
 import tempfile
 
-# Module-level (not a hook): conftest imports before any test module in every
-# pytest process, so this runs ahead of `import app` serially and in each
-# pytest-xdist worker. mkstemp per process → per-worker sqlite file.
-# Always wins; external DATABASE_URL is never read.
-_worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
-_fd, _path = tempfile.mkstemp(prefix="microblog-{}-".format(_worker), suffix=".db")
-os.close(_fd)
-atexit.register(lambda: os.path.exists(_path) and os.unlink(_path))
-os.environ["DATABASE_URL"] = "sqlite:///{}".format(_path)
-os.environ["MICROBLOG_ENV"] = "testing"
-# Flask-WTF CSRF + sessions need a secret; master config has no fallback.
-os.environ.setdefault("SECRET_KEY", "test-secret-for-pytest")
+
+def pytest_configure(config):
+    # Runs in every pytest process (serial + each xdist worker) before
+    # collection imports test modules, so `import app` still picks up
+    # this DATABASE_URL. mkstemp → fresh unique sqlite file per worker.
+    # Always wins; external DATABASE_URL is never read.
+    worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
+    fd, path = tempfile.mkstemp(prefix=f"microblog-{worker}-", suffix=".db")
+    os.close(fd)
+    atexit.register(lambda: os.path.exists(path) and os.unlink(path))
+    os.environ["DATABASE_URL"] = f"sqlite:///{path}"
+    # Selects TestConfig in app. Must precede `import app`.
+    os.environ["FLASK_CONFIG"] = "testing"

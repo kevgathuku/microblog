@@ -11,6 +11,18 @@ class Config(object):
     POSTS_PER_PAGE = 3
 
 
+class TestConfig(Config):
+    TESTING = True
+    SECRET_KEY = "test-secret-for-pytest"
+
+
+config = {
+    "development": Config,
+    "testing": TestConfig,
+    "default": Config,
+}
+
+
 def resolve_db_path(url=None):
     """Map a sqlite URL (or plain path) to a filesystem path."""
     url = url or Config.DATABASE_URL
