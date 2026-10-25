@@ -12,7 +12,6 @@ from peewee import (
     ForeignKeyField,
     IntegrityError,
     Model,
-    TextField,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from app import db, app, login
@@ -27,7 +26,7 @@ class User(UserMixin, BaseModel):
     id = AutoField()
     username = CharField(max_length=64, unique=True, index=True)
     email = CharField(max_length=120, unique=True, index=True)
-    about_me = TextField(null=True)
+    about_me = CharField(null=True, max_length=140)
     last_seen = DateTimeField(null=True, default=lambda: datetime.now(timezone.utc))
     password_hash = CharField(max_length=256, null=True)
 

@@ -9,7 +9,7 @@ def up(migrator, db):
     class User(Model):
         username = CharField(unique=True, max_length=64)
         email = CharField(unique=True, max_length=120)
-        about_me = TextField(null=True)
+        about_me = CharField(null=True, max_length=140)
         last_seen = DateTimeField(null=True, default=utcnow)
         password_hash = CharField(null=True, max_length=256)
 
