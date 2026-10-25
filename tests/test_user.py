@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest  # noqa: E402
-
-from app.models import TABLES, Post, User, db  # noqa: E402
+from app import db
+from app.models import TABLES, Post, User  # noqa: E402
 
 
 @pytest.fixture(autouse=True)

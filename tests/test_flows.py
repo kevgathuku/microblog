@@ -4,8 +4,8 @@ from urllib.parse import unquote
 import pytest  # noqa: E402
 from webtest import TestApp  # noqa: E402
 
-from app import app  # noqa: E402
-from app.models import TABLES, db  # noqa: E402
+from app import app, db  # noqa: E402
+from app.models import TABLES  # noqa: E402
 
 
 @pytest.fixture

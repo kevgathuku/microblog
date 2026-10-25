@@ -1,7 +1,7 @@
 # Defaults for `pwmigrate` (playhouse.migrations)
 # Lets every command run bare, e.g. `pwmigrate status`, `pwmigrate up`, `pwmigrate diff`
 # The models are diffed from app.models.
-database = app.models.db
+database = app.db
 models = app.models
 # directory = migrations
 # table = schema_migration

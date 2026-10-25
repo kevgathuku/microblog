@@ -1,5 +1,5 @@
-from app import app
-from app.models import Follow, Post, User, db
+from app import app, db
+from app.models import Follow, Post, User
 
 
 @app.shell_context_processor

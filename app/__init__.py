@@ -5,16 +5,18 @@ import time
 
 from flask import Flask, g, request
 from loguru import logger
-from config import Config
+from config import Config, resolve_db_path
 from flask_login import LoginManager
-
-from app.models import User, db
+from peewee import SqliteDatabase
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
 login = LoginManager(app)
 login.login_view = "login"
+
+db = SqliteDatabase(None)
+db.init(resolve_db_path(Config.DATABASE_URL))
 
 
 @app.before_request
@@ -51,11 +53,6 @@ def _log_request(response):
 def _db_close(exc):
     if not db.is_closed():
         db.close()
-
-
-@login.user_loader
-def load_user(id):
-    return User.get_or_none(User.id == int(id))
 
 
 # Logging via loguru: stdlib records (Flask's 500 tracebacks, peewee SQL)

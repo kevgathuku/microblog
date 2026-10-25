@@ -12,17 +12,10 @@ from peewee import (
     ForeignKeyField,
     IntegrityError,
     Model,
-    SqliteDatabase,
     TextField,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
-
-from config import Config, resolve_db_path
-
-# Bound at import from Config (app.db, or a temp file under pytest via
-# DATABASE_URL) so `pwmigrate` can resolve `app.models.db`.
-db = SqliteDatabase(None)
-db.init(resolve_db_path(Config.DATABASE_URL))
+from app import db, app, login
 
 
 class BaseModel(Model):
@@ -120,6 +113,11 @@ class User(UserMixin, BaseModel):
 
     def __repr__(self):
         return f"<User {self.username}>"
+
+
+@login.user_loader
+def load_user(id):
+    return User.get_or_none(User.id == int(id))
 
 
 class Follow(BaseModel):
