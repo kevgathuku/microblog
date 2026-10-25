@@ -88,6 +88,12 @@ if app.testing:
         rotation="1 MB",
         retention=10,
     )
+    # Route peewee's stdlib SQL records into loguru (file gets them at
+    # DEBUG); without this they never reach any loguru sink under tests.
+    peewee_logger = logging.getLogger("peewee")
+    peewee_logger.addHandler(InterceptHandler())
+    peewee_logger.setLevel(logging.DEBUG)
+    peewee_logger.propagate = False
 elif not app.debug:
     logger.remove()
     logger.add(sys.stderr, level="INFO")
