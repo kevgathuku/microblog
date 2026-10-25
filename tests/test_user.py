@@ -2,16 +2,15 @@ from datetime import datetime, timedelta, timezone
 
 import pytest  # noqa: E402
 from app import db
-from app.models import TABLES, Post, User  # noqa: E402
+from app.models import Post, User  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
 def clean_db():
     db.connect(reuse_if_open=True)
-    db.drop_tables(TABLES, safe=True)
-    db.create_tables(TABLES, safe=True)
+    db.begin()
     yield
-    db.drop_tables(TABLES, safe=True)
+    db.rollback()
     db.close()
 
 

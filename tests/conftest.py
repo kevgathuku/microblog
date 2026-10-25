@@ -2,6 +2,8 @@ import atexit
 import os
 import tempfile
 
+import pytest
+
 
 def pytest_configure(config):
     # Runs in every pytest process (serial + each xdist worker) before
@@ -15,3 +17,16 @@ def pytest_configure(config):
     os.environ["DATABASE_URL"] = f"sqlite:///{path}"
     # Selects TestConfig in app. Must precede `import app`.
     os.environ["FLASK_CONFIG"] = "testing"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _create_schema():
+    # One schema per worker process; per-test fixtures only roll back rows.
+    # Local imports: app must bind DATABASE_URL after pytest_configure.
+    from app import db
+    from app.models import TABLES
+
+    db.connect(reuse_if_open=True)
+    db.create_tables(TABLES, safe=True)
+    yield
+    db.close()

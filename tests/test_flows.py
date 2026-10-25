@@ -5,7 +5,6 @@ import pytest  # noqa: E402
 from webtest import TestApp  # noqa: E402
 
 from app import app, db  # noqa: E402
-from app.models import TABLES  # noqa: E402
 
 
 @pytest.fixture
@@ -13,10 +12,9 @@ def client():
     ctx = app.app_context()
     ctx.push()
     db.connect(reuse_if_open=True)
-    db.drop_tables(TABLES, safe=True)
-    db.create_tables(TABLES, safe=True)
+    db.begin()
     yield TestApp(app)
-    db.drop_tables(TABLES, safe=True)
+    db.rollback()
     db.close()
     ctx.pop()
 
