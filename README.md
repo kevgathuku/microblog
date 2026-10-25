@@ -13,7 +13,7 @@ Managed with [uv](https://docs.astral.sh/uv/). Python version is pinned via
 uv sync                 # create .venv with the exact locked env (fetches Python itself if needed)
 uv run pre-commit install   # enable the black pre-commit hook (downloads hook env on first run)
 direnv allow            # optional: auto-activates .venv on cd, so bare `flask` works
-uv run flask db upgrade # create / migrate the local database
+uv run pwmigrate up    # create / migrate the local database (pwmigrate, see .pwmigrate)
 ```
 
 ```sh
@@ -35,11 +35,20 @@ uv sync --upgrade
 DB operations
 
 ```sh
-# Downgrade all migrations
-flask db downgrade base
+# Show applied vs pending migrations
+uv run pwmigrate status
 
-# Migrate up to the latest migration
-flask db upgrade
+# Apply pending migrations
+uv run pwmigrate up
+
+# Revert the most recent migration
+uv run pwmigrate down
+
+# Show schema drift: live DB vs app.models
+uv run pwmigrate diff
+
+# Write a migration from the diff
+uv run pwmigrate generate <name>
 ```
 
 Start a Python interpreter in the context of the application
@@ -51,23 +60,21 @@ flask shell
 ### Querying (`flask shell`)
 
 ```python
-from app import db
 from app.models import User, Post
 
-u = db.session.get(User, 1)                                        # by primary key
-susan = db.session.scalar(db.select(User).where(User.username == "susan"))
+u = User.get_by_id(1)                                # by primary key
+susan = User.get_or_none(User.username == "susan")
 
-# followers / following are WriteOnlyMapped: select through them
-# list of User
-db.session.scalars(u.followers.select()).all()
-db.session.scalars(u.following.select()).all()
+# followers / following are model properties returning queries
+list(u.followers)
+list(u.following)
 
-# just the number
-u.followers_count()
-u.following_count()
+# just the numbers (properties, not methods)
+u.followers_count
+u.following_count
 
 # homepage feed: followed users' posts plus your own, newest first
-db.session.scalars(u.following_posts()).all()
+list(u.following_posts())
 ```
 
 ### Tests
