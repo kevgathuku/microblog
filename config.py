@@ -9,11 +9,13 @@ class Config(object):
         basedir, "app.db"
     )
     POSTS_PER_PAGE = 3
+    LOG_FILE = os.path.join(basedir, "logs", "microblog.log")
 
 
 class TestConfig(Config):
     TESTING = True
     SECRET_KEY = "test-secret-for-pytest"
+    LOG_FILE = os.path.join(basedir, "logs", "microblog-test.log")
 
 
 config = {

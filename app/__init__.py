@@ -75,14 +75,24 @@ class InterceptHandler(logging.Handler):
         )
 
 
+os.makedirs(os.path.dirname(app.config["LOG_FILE"]), exist_ok=True)
 if app.testing:
-    logger.remove()
-elif not app.debug:
-    os.makedirs("logs", exist_ok=True)
+    # pytest captures stderr per test and shows it on failure; the file
+    # keeps the full DEBUG trace (peewee SQL) out of the console.
     logger.remove()
     logger.add(sys.stderr, level="INFO")
     logger.add(
-        "logs/microblog.log",
+        app.config["LOG_FILE"],
+        level="DEBUG",
+        serialize=True,
+        rotation="1 MB",
+        retention=10,
+    )
+elif not app.debug:
+    logger.remove()
+    logger.add(sys.stderr, level="INFO")
+    logger.add(
+        app.config["LOG_FILE"],
         level="DEBUG",  # peewee SQL is DEBUG: file only, never the console
         serialize=True,
         rotation="1 MB",
