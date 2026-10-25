@@ -4,10 +4,11 @@ import sys
 import time
 
 from flask import Flask, g, request
-from loguru import logger
-from config import config, resolve_db_path
 from flask_login import LoginManager
+from loguru import logger
 from peewee import SqliteDatabase
+
+from config import config, resolve_db_path
 
 app = Flask(__name__)
 app.config.from_object(config[os.environ.get("FLASK_CONFIG", "default")])
@@ -120,4 +121,4 @@ elif not app.debug:
     logger.info("Microblog startup")
 
 # imported at the bottom to avoid circular imports
-from app import routes, errors
+from app import errors, routes  # noqa: E402, F401

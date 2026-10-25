@@ -13,10 +13,22 @@ dependencies = [
     "peewee>=4.5.3",
 ]
 
+[tool.ruff]
+target-version = "py315"
+
+[tool.ruff.lint]
+# E4/E7/E9/F: ruff defaults. I: isort-equivalent (no separate isort needed).
+# UP: pyupgrade. SIM: flake8-simplify. RUF100: stale noqa cleanup.
+select = ["E4", "E7", "E9", "F", "I", "UP", "SIM", "RUF100"]
+
+[tool.ruff.lint.per-file-ignores]
+# pwmigrate generates these (star imports, lambdas); don't lint them.
+"migrations/*.py" = ["F403", "F405", "E731"]
+
 [dependency-groups]
 dev = [
-    "black==26.10.1",
     "ipdb>=0.13.13",
+    "ruff>=0.17.2",
     "pre-commit>=4.7.0",
     "pytest>=9.1.1",
     "pytest-xdist>=3.8.0",

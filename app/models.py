@@ -1,6 +1,7 @@
 """Peewee models"""
 
-from datetime import datetime, timezone
+from contextlib import suppress
+from datetime import UTC, datetime
 from hashlib import md5
 
 from flask_login import UserMixin
@@ -14,7 +15,8 @@ from peewee import (
     Model,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
-from app import db, app, login
+
+from app import db, login
 
 
 class BaseModel(Model):
@@ -27,7 +29,7 @@ class User(UserMixin, BaseModel):
     username = CharField(max_length=64, unique=True, index=True)
     email = CharField(max_length=120, unique=True, index=True)
     about_me = CharField(null=True, max_length=140)
-    last_seen = DateTimeField(null=True, default=lambda: datetime.now(timezone.utc))
+    last_seen = DateTimeField(null=True, default=lambda: datetime.now(UTC))
     password_hash = CharField(max_length=256, null=True)
 
     def set_password(self, password):
@@ -50,10 +52,9 @@ class User(UserMixin, BaseModel):
     def follow(self, user):
         if self.is_following(user):
             return
-        try:
+        # lost a concurrent follow race; the row already exists
+        with suppress(IntegrityError):
             Follow.create(follower=self, followed=user)
-        except IntegrityError:
-            pass  # lost a concurrent follow race; the row already exists
 
     def unfollow(self, user):
         if self.is_following(user):
@@ -130,7 +131,7 @@ class Follow(BaseModel):
 class Post(BaseModel):
     id = AutoField()
     body = CharField(max_length=140)
-    timestamp = DateTimeField(index=True, default=lambda: datetime.now(timezone.utc))
+    timestamp = DateTimeField(index=True, default=lambda: datetime.now(UTC))
     user = ForeignKeyField(User, backref="posts", index=True)
 
     @property

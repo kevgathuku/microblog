@@ -1,8 +1,9 @@
 # Generated from a schema diff on 2026-10-23 23:03.
 import datetime
+
 from peewee import *
 
-utcnow = lambda: datetime.datetime.now(datetime.timezone.utc)
+utcnow = lambda: datetime.datetime.now(datetime.UTC)
 
 
 def up(migrator, db):

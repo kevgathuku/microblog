@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField, TextAreaField
-from wtforms.validators import ValidationError, DataRequired, Email, EqualTo, Length
+from wtforms import BooleanField, PasswordField, StringField, SubmitField, TextAreaField
+from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
 
 from app.models import User
 
@@ -41,10 +41,11 @@ class EditProfileForm(FlaskForm):
 
     def validate_username(self, username):
         # Only check if the user submits a different username
-        if username.data != self.original_username:
-            # Check if the submitted username is already in use
-            if User.select().where(User.username == username.data).exists():
-                raise ValidationError("Please use a different username")
+        if (
+            username.data != self.original_username
+            and User.select().where(User.username == username.data).exists()
+        ):
+            raise ValidationError("Please use a different username")
 
 
 class EmptyForm(FlaskForm):

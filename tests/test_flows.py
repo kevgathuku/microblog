@@ -1,10 +1,10 @@
 from html.parser import HTMLParser
 from urllib.parse import unquote
 
-import pytest  # noqa: E402
-from webtest import TestApp  # noqa: E402
+import pytest
+from webtest import TestApp
 
-from app import app, db  # noqa: E402
+from app import app, db
 
 
 @pytest.fixture

@@ -62,7 +62,7 @@ flask shell
 ```python
 from app.models import User, Post
 
-u = User.get_by_id(1)                                # by primary key
+u = User.get_by_id(1)  # by primary key
 susan = User.get_or_none(User.username == "susan")
 
 # followers / following are model properties returning queries

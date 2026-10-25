@@ -1,10 +1,12 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlsplit
-from flask import abort, render_template, flash, redirect, url_for, request
-from flask_login import current_user, login_user, logout_user, login_required
+
+from flask import abort, flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required, login_user, logout_user
+
 from app import app
-from app.forms import LoginForm, RegistrationForm, EditProfileForm, EmptyForm, PostForm
-from app.models import User, Post
+from app.forms import EditProfileForm, EmptyForm, LoginForm, PostForm, RegistrationForm
+from app.models import Post, User
 
 
 @app.before_request
@@ -12,10 +14,10 @@ def before_request():
     if current_user.is_authenticated:
         # Throttled: last_seen only needs minute precision, and writing on
         # every request locks SQLite under concurrent (threaded) traffic.
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         last = current_user.last_seen
         if last is not None and last.tzinfo is None:
-            last = last.replace(tzinfo=timezone.utc)
+            last = last.replace(tzinfo=UTC)
         if last is None or (now - last) > timedelta(minutes=5):
             current_user.last_seen = now
             current_user.save(only=[User.last_seen])

@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-import pytest  # noqa: E402
+import pytest
+
 from app import db
-from app.models import Post, User  # noqa: E402
+from app.models import Post, User
 
 
 @pytest.fixture(autouse=True)
@@ -57,7 +58,7 @@ def test_follow_posts():
     u4 = User.create(username="david", email="david@example.com")
 
     # create four posts
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     p1 = Post.create(
         body="post from john", author=u1, timestamp=now + timedelta(seconds=1)
     )
