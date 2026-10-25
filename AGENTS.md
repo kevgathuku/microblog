@@ -46,7 +46,7 @@ no API key, $0).
 no backups). Rules for ANY shell command or code run:
 
 - NEVER read/write/delete them. Point every throwaway command at a temp DB:
-  `DATABASE_URL="sqlite:////tmp/<name>.db"` (plus `SECRET_KEY=x` where the
+  `DATABASE_PATH="/tmp/<name>.db"` (plus `SECRET_KEY=x` where the
   app requires one), and `rm` the temp file when done.
 - NEVER `rm -f app.db` / `bottle.db`, not even "to recreate" — a failed
   follow-up command leaves data permanently deleted.

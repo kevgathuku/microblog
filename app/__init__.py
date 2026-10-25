@@ -8,7 +8,7 @@ from flask_login import LoginManager
 from loguru import logger
 from peewee import SqliteDatabase
 
-from config import config, resolve_db_path
+from config import config
 
 app = Flask(__name__)
 app.config.from_object(config[os.environ.get("FLASK_CONFIG", "default")])
@@ -17,7 +17,7 @@ login = LoginManager(app)
 login.login_view = "login"
 
 db = SqliteDatabase(None)
-db.init(resolve_db_path(app.config["DATABASE_URL"]))
+db.init(app.config["DATABASE_PATH"])
 
 
 @app.before_request

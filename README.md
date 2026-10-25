@@ -92,14 +92,14 @@ they must run:
 
 1. **DB path before app import (`tests/conftest.py::pytest_configure`).**
    Each pytest process (serial run, or every xdist worker) `mkstemp`s a fresh
-   `microblog-<worker>-*.db` file and sets `DATABASE_URL` (+ `FLASK_CONFIG=testing`)
+   `microblog-<worker>-*.db` file and sets `DATABASE_PATH` (+ `FLASK_CONFIG=testing`)
    in the environment. This must happen in the configure hook — not a fixture —
    because `config.py` reads the environment at import time, and test modules
    `import app` during collection, before any fixture runs. A fixture would be
    too late; the app would bind the dev database.
 2. **Static test settings (`config.TestConfig`, selected by `FLASK_CONFIG`).**
    `TESTING = True` and a fixed `SECRET_KEY` (CSRF/sessions need one) are the
-   same for every worker, so they live in config. `DATABASE_URL` stays on the
+   same for every worker, so they live in config. `DATABASE_PATH` stays on the
 environment because it differs per worker — no static config can hold it.
 3. **Schema once per worker (session fixture `_create_schema`).** Creates all
    tables a single time per process. Fixtures *can* do DDL (they run after
