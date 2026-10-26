@@ -5,6 +5,7 @@ import pytest
 from webtest import TestApp
 
 from app import app, db
+from app.models import User
 
 
 @pytest.fixture
@@ -240,3 +241,68 @@ def test_empty_page_redirects_to_first_page(client):
     _post(client, "only post")
     redirected_to(client.get("/?page=199"), "/index")
     redirected_to(client.get("/explore?page=199"), "/explore")
+
+
+def _request_reset(client, email):
+    page = client.get("/reset_password_request").text
+    return client.post(
+        "/reset_password_request",
+        {"csrf_token": csrf_token(page), "email": email},
+    )
+
+
+def _no_real_email(client, monkeypatch):
+    # send_email fires a Thread at localhost:8025; stub at the route boundary.
+    sent = []
+    monkeypatch.setattr(
+        "app.routes.send_password_reset_email", lambda user: sent.append(user.email)
+    )
+    return sent
+
+
+def test_reset_request_for_known_user_sends_email(client, monkeypatch):
+    register(client, username="resetee", email="resetee@example.com")
+    sent = _no_real_email(client, monkeypatch)
+    redirected_to(_request_reset(client, "resetee@example.com"), "/login")
+    assert sent == ["resetee@example.com"]
+    assert "Check your email" in client.get("/login").text
+
+
+def test_reset_request_for_unknown_user_sends_nothing(client, monkeypatch):
+    sent = _no_real_email(client, monkeypatch)
+    redirected_to(_request_reset(client, "nobody@example.com"), "/login")
+    assert sent == []
+    # Same response either way: no account enumeration.
+    assert "Check your email" in client.get("/login").text
+
+
+def test_reset_password_with_valid_token(client):
+    register(client, username="resetme", email="resetme@example.com")
+    token = User.get_or_none(User.username == "resetme").get_reset_password_token()
+    page = client.get(f"/reset_password/{token}", status=200).text
+    assert "Reset Your Password" in page
+    redirected_to(
+        client.post(
+            f"/reset_password/{token}",
+            {
+                "csrf_token": csrf_token(page),
+                "password": "newpass123",
+                "password2": "newpass123",
+            },
+        ),
+        "/login",
+    )
+    # Old password rejected, new one works.
+    redirected_to(login(client, username="resetme"), "/login")
+    token = csrf_token(client.get("/login").text)
+    redirected_to(
+        client.post(
+            "/login",
+            {"csrf_token": token, "username": "resetme", "password": "newpass123"},
+        ),
+        "/index",
+    )
+
+
+def test_reset_password_with_bad_token_redirects_index(client):
+    redirected_to(client.get("/reset_password/bogus-token"), "/index")
