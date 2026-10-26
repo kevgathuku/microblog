@@ -5,6 +5,7 @@ import time
 
 from flask import Flask, g, request
 from flask_login import LoginManager
+from flask_mail import Mail
 from loguru import logger
 from peewee import SqliteDatabase
 
@@ -18,6 +19,8 @@ login.login_view = "login"
 
 db = SqliteDatabase(None)
 db.init(app.config["DATABASE_PATH"])
+
+mail = Mail(app)
 
 
 @app.before_request
@@ -96,6 +99,13 @@ if app.testing:
     peewee_logger.setLevel(logging.DEBUG)
     peewee_logger.propagate = False
 elif not app.debug:
+    if app.config["MAIL_SERVER"]:
+        auth = None
+        if app.config["MAIL_USERNAME"] or app.config["MAIL_PASSWORD"]:
+            auth = (app.config["MAIL_USERNAME"], app.config["MAIL_PASSWORD"])
+        secure = None
+        if app.config["MAIL_USE_TLS"]:
+            secure = ()
     logger.remove()
     logger.add(sys.stderr, level="INFO")
     logger.add(

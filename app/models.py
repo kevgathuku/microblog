@@ -3,7 +3,9 @@
 from contextlib import suppress
 from datetime import UTC, datetime
 from hashlib import md5
+from time import time
 
+import jwt
 from flask_login import UserMixin
 from peewee import (
     AutoField,
@@ -16,7 +18,7 @@ from peewee import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from app import db, login
+from app import app, db, login
 
 
 class BaseModel(Model):
@@ -100,6 +102,23 @@ class User(UserMixin, BaseModel):
             .where(Post.user.in_(followed_ids + [self.id]))
             .order_by(Post.timestamp.desc())
         )
+
+    def get_reset_password_token(self, expires_in=600):
+        return jwt.encode(
+            {"reset_password": self.id, "exp": time() + expires_in},
+            app.config["SECRET_KEY"],
+            algorithm="HS256",
+        )
+
+    @staticmethod
+    def verify_reset_password_token(token):
+        try:
+            id = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])[
+                "reset_password"
+            ]
+        except jwt.InvalidTokenError, KeyError:
+            return
+        return User.get_or_none(User.id == id)
 
     # Instances are often loaded twice (session user vs. page user);
     # identity must mean "same row" for `user == current_user` checks.

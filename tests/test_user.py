@@ -50,6 +50,15 @@ def test_follow():
     assert u2.followers_count == 0
 
 
+def test_reset_password_token():
+    u = User.create(username="tok", email="tok@example.com")
+    token = u.get_reset_password_token()
+    assert User.verify_reset_password_token(token) == u
+    assert User.verify_reset_password_token(token + "x") is None
+    u.delete_instance()
+    assert User.verify_reset_password_token(token) is None
+
+
 def test_follow_posts():
     # create four users
     u1 = User.create(username="john", email="john@example.com")
